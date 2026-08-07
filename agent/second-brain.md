@@ -1,11 +1,11 @@
 ---
-name: second-brain
-description: >
-  Gestion du second cerveau via le serveur MCP `second-brain`. À utiliser pour le
-  debug, la création d'un plan, la résolution d'un problème inconnu, ou l'ajout de
-  connaissance validée. Règle d'or : tant qu'un sujet n'est PAS validé, il vit dans
-  un `case` (dossier d'investigation JSON) créé via le MCP — jamais en écriture
-  directe. Une fois le case résolu, on le promeut en fiche MD ou en skill via le MCP.
+description: >-
+  Gestion du second cerveau via le serveur MCP `second-brain` (cases, fiches, skills).
+  À utiliser pour le debug, la création d'un plan, la résolution d'un problème inconnu,
+  ou l'ajout de connaissance validée. Règle d'or : tant qu'un sujet n'est PAS validé,
+  il vit dans un `case` créé via le MCP — jamais en écriture directe. Une fois le case
+  résolu, on le promeut en fiche MD ou en skill via le MCP.
+mode: all
 ---
 
 # second-brain
@@ -15,8 +15,7 @@ description: >
 Le second cerveau stocke de la **connaissance validée** (fiches MD + skills dans `fiches/` et `skills/`),
 et traite tout le reste comme des **cases** (investigations transitoires) jusqu'à validation.
 
-Ce skill régit le workflow : quand utiliser les cases, comment les creuser, et comment
-les promouvoir en savoir validé.
+Ce workflow régit : quand utiliser les cases, comment les creuser, et comment les promouvoir en savoir validé.
 
 ## Règles fondamentales
 

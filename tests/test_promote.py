@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from second_brain import promote
-from second_brain.storage import Storage
+from second_brain.adapters.filesystem import Storage
+from second_brain.application.promotion_service import PromotionService
+from second_brain.domain.models.case import Case
+from second_brain.domain.models.step import Step
 
 
-def _resolved_case(storage: Storage):
+def _service(storage: Storage) -> PromotionService:
+    return PromotionService(storage, storage, storage)
+
+
+def _resolved_case(storage: Storage) -> Case:
     case = storage.create_case(
         title="Réparer le renouvellement SSL",
         goal="Comprendre pourquoi le renouvellement Let's Encrypt échoue",
@@ -18,8 +24,6 @@ def _resolved_case(storage: Storage):
     )
     storage.add_evidence(case.id, "error: invalid response", "cause du refus", "01.log")
     case = storage.get_case(case.id)
-    from second_brain.domain import Step
-
     case.findings.append("Le DNS-01 renvoie un TXT trop long")
     case.conclusion = "Réduire la taille du record TXT résout le problème"
     case.steps = [
@@ -34,18 +38,18 @@ def _resolved_case(storage: Storage):
 def test_cannot_promote_open_case(storage: Storage) -> None:
     case = storage.create_case(title="a", goal="g")
     with pytest.raises(ValueError):
-        promote.promote(storage, case, "fiche")
+        _service(storage).promote(case, "fiche")
 
 
 def test_invalid_target(storage: Storage) -> None:
     case = _resolved_case(storage)
     with pytest.raises(ValueError):
-        promote.promote(storage, case, "memo")
+        _service(storage).promote(case, "memo")
 
 
 def test_promote_to_fiche(storage: Storage) -> None:
     case = _resolved_case(storage)
-    result = promote.promote(storage, case, "fiche")
+    result = _service(storage).promote(case, "fiche")
     assert result["target"] == "fiche"
     assert result["path"].startswith("fiches/")
     assert "## Constats" in result["content"]
@@ -57,7 +61,7 @@ def test_promote_to_fiche(storage: Storage) -> None:
 
 def test_promote_to_skill(storage: Storage) -> None:
     case = _resolved_case(storage)
-    result = promote.promote(storage, case, "skill")
+    result = _service(storage).promote(case, "skill")
     assert result["target"] == "skill"
     assert result["path"].endswith("SKILL.md")
     assert "## Procédure" in result["content"]
@@ -68,7 +72,15 @@ def test_promote_to_skill(storage: Storage) -> None:
 
 def test_promotion_marks_case(storage: Storage) -> None:
     case = _resolved_case(storage)
-    promote.promote(storage, case, "fiche")
+    _service(storage).promote(case, "fiche")
     updated = storage.get_case(case.id)
     assert updated.promotion is not None
     assert updated.promotion.target == "fiche"
+
+
+def test_fiche_badges_promotion_status(storage: Storage) -> None:
+    case = _resolved_case(storage)
+    result = _service(storage).promote(case, "fiche")
+    assert "Statut : validé" in result["content"]
+    fiche = storage.read_fiche(result["slug"])
+    assert "Statut : validé" in fiche

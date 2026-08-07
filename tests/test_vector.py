@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from second_brain.storage import Storage
-from second_brain.vector import VectorIndex
+import pytest
+
+from second_brain.adapters.chroma import VectorIndex
+from second_brain.adapters.filesystem import Storage
 
 
 def _seed(storage: Storage) -> None:
@@ -19,25 +21,29 @@ def _seed(storage: Storage) -> None:
     storage.add_evidence(case.id, "invalid response from http-01", "cause", "01.log")
 
 
+def _index(storage: Storage) -> VectorIndex:
+    return VectorIndex(storage, storage.vector_dir)
+
+
 def test_lexical_search_finds_fiche(storage: Storage) -> None:
     _seed(storage)
-    idx = VectorIndex(storage)
+    idx = _index(storage)
     results = idx._lexical("renouvellement TLS échoue record trop long", top_k=5)
     assert results, "expected at least one result"
     assert any(r["id"] == "fiche:traefik-ssl-renew" for r in results)
 
 
-def test_query_works_without_chroma(storage: Storage, monkeypatch) -> None:
+def test_query_works_without_chroma(storage: Storage, monkeypatch: pytest.MonkeyPatch) -> None:
     _seed(storage)
-    monkeypatch.setattr("second_brain.vector._CHROMA_AVAILABLE", False)
-    idx = VectorIndex(storage)
+    monkeypatch.setattr("second_brain.adapters.chroma._CHROMA_AVAILABLE", False)
+    idx = _index(storage)
     results = idx.query("renouvellement SSL record trop long")
     assert results
     assert any(r["id"].startswith("fiche:") or r["id"].startswith("case:") for r in results)
 
 
-def test_rebuild_returns_zero_when_chroma_missing(storage: Storage, monkeypatch) -> None:
+def test_rebuild_returns_zero_when_chroma_missing(storage: Storage, monkeypatch: pytest.MonkeyPatch) -> None:
     _seed(storage)
-    monkeypatch.setattr("second_brain.vector._CHROMA_AVAILABLE", False)
-    idx = VectorIndex(storage)
+    monkeypatch.setattr("second_brain.adapters.chroma._CHROMA_AVAILABLE", False)
+    idx = _index(storage)
     assert idx.rebuild() == 0

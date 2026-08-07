@@ -7,13 +7,9 @@ import json
 import jsonschema
 import pytest
 
-from second_brain.storage import (
-    SCHEMA_PATH,
-    CaseNotFoundError,
-    CaseValidationError,
-    Storage,
-    slugify,
-)
+from second_brain.adapters.filesystem import SCHEMA_PATH, Storage
+from second_brain.domain.errors import CaseNotFoundError, CaseValidationError
+from second_brain.domain.text import slugify
 
 
 def test_create_case_minimal(storage: Storage) -> None:
@@ -55,7 +51,7 @@ def test_get_missing_raises(storage: Storage) -> None:
 
 
 def test_update_requires_existing(storage: Storage) -> None:
-    from second_brain.domain import Case
+    from second_brain.domain.models.case import Case
 
     now = "2026-08-07T00:00:00"
     bogus = Case(id="case-2026-08-07-999", title="t", status="open", goal="g", context="", created_at=now, updated_at=now)
@@ -83,6 +79,11 @@ def test_delete_case(storage: Storage) -> None:
         storage.get_case(case.id)
 
 
+def test_delete_case_rejects_malformed_id(storage: Storage) -> None:
+    with pytest.raises(CaseNotFoundError):
+        storage.delete_case("../etc")
+
+
 def test_evidence_persists_to_disk(storage: Storage) -> None:
     case = storage.create_case(title="a", goal="g")
     updated = storage.add_evidence(case.id, "ERROR 500", "erreur serveur", filename="err.log")
@@ -90,6 +91,14 @@ def test_evidence_persists_to_disk(storage: Storage) -> None:
     ev_file = storage.cases_dir / case.id / "evidence" / "err.log"
     assert ev_file.read_text() == "ERROR 500"
     assert updated.evidence[0].path == "evidence/err.log"
+
+
+def test_evidence_filename_ignores_parent_dirs(storage: Storage) -> None:
+    case = storage.create_case(title="a", goal="g")
+    updated = storage.add_evidence(case.id, "x", "résumé", filename="../../evil.txt")
+    assert updated.evidence[0].path == "evidence/evil.txt"
+    assert not (storage.root / "evil.txt").exists()
+    assert (storage.cases_dir / case.id / "evidence" / "evil.txt").exists()
 
 
 def test_slugify() -> None:
