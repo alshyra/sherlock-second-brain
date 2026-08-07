@@ -1,7 +1,7 @@
 """Vector index over fiches and cases (ChromaDB + fastembed, in-process).
 
 The index is *derived*: it can always be rebuilt from the source files
-(kb/ and cases/). Optional — if chromadb/fastembed are not installed,
+(fiches/ and cases/). Optional — if chromadb/fastembed are not installed,
 search falls back to lexical matching.
 """
 

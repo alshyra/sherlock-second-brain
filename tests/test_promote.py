@@ -47,7 +47,7 @@ def test_promote_to_fiche(storage: Storage) -> None:
     case = _resolved_case(storage)
     result = promote.promote(storage, case, "fiche")
     assert result["target"] == "fiche"
-    assert result["path"].startswith("kb/fiches/")
+    assert result["path"].startswith("fiches/")
     assert "## Constats" in result["content"]
     assert "cause du refus" not in result["content"]  # preuve reste dans le case
     fiche = storage.read_fiche(result["slug"])

@@ -5,8 +5,8 @@ Layout::
     <data_dir>/
       cases/<case-id>/case.json
       cases/<case-id>/evidence/<file>
-      kb/fiches/<slug>.md
-      kb/skills/<slug>/SKILL.md
+      fiches/<slug>.md
+      skills/<slug>/SKILL.md
       vector/            # chromadb persistent dir (gitignored)
 """
 
@@ -79,8 +79,8 @@ class Storage:
     def __init__(self, data_dir: str | Path) -> None:
         self.root = Path(data_dir).resolve()
         self.cases_dir = self.root / "cases"
-        self.fiches_dir = self.root / "kb" / "fiches"
-        self.skills_dir = self.root / "kb" / "skills"
+        self.fiches_dir = self.root / "fiches"
+        self.skills_dir = self.root / "skills"
         self.vector_dir = self.root / "vector"
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -218,7 +218,6 @@ class Storage:
         path = self.fiches_dir / f"{slug}.md"
         _atomic_write(path, content)
         return path
-
     def read_fiche(self, slug: str) -> str:
         path = self.fiches_dir / f"{slug}.md"
         if not path.exists():

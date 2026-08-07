@@ -12,7 +12,7 @@ description: >
 
 ## Objectif
 
-Le second cerveau stocke de la **connaissance validée** (fiches MD + skills dans `kb/`),
+Le second cerveau stocke de la **connaissance validée** (fiches MD + skills dans `fiches/` et `skills/`),
 et traite tout le reste comme des **cases** (investigations transitoires) jusqu'à validation.
 
 Ce skill régit le workflow : quand utiliser les cases, comment les creuser, et comment
@@ -21,7 +21,7 @@ les promouvoir en savoir validé.
 ## Règles fondamentales
 
 1. **Chercher avant d'écrire** — toute nouvelle question commence par `case_search` (recherche sémantique) sur la KB.
-2. **Tant que ce n'est pas validé → `case_create`** — jamais d'écriture directe dans `kb/` pour du savoir non confirmé.
+2. **Tant que ce n'est pas validé → `case_create`** — jamais d'écriture directe dans `fiches/` et `skills/` pour du savoir non confirmé.
 3. **La promotion est l'acte de validation** — `case_promote` transforme un case `resolved` en fiche ou skill.
 4. **Un case, une investigation** — ne pas mélanger deux problèmes distincts dans un même case.
 
@@ -83,7 +83,7 @@ case_promote(case_id=..., target="skill")    # procédure réutilisable
 ```
 
 Le MCP génère automatiquement la fiche MD ou le `SKILL.md` depuis le case, l'écrit
-dans `kb/`, et marque le case comme promu.
+dans `fiches/` et `skills/`, et marque le case comme promu.
 
 > **Abandon** : si l'investigation n'aboutit pas, `case_set_status(status="abandoned")`
 > puis `case_promote(target="fiche")` si les constats valent d'être gardés.
@@ -97,4 +97,4 @@ dans `kb/`, et marque le case comme promu.
 ## Configuration
 
 - Data dir (VPS) : `/opt/infra/kb` via `SECOND_BRAIN_DATA_DIR`.
-- Fiches : `kb/fiches/*.md` — Skills : `kb/skills/<slug>/SKILL.md`.
+- Fiches : `fiches/*.md` — Skills : `skills/<slug>/SKILL.md`.

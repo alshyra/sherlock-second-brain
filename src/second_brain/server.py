@@ -142,7 +142,7 @@ def case_set_status(case_id: str, status: str) -> dict:
 def case_promote(case_id: str, target: str) -> dict:
     """Promote a resolved case into validated KB: ``target`` = ``fiche`` or ``skill``.
 
-    Generates the MD/SKILL.md from the case, writes it to kb/ and marks the case.
+    Generates the MD/SKILL.md from the case, writes it to the KB and marks the case.
     """
     storage, index = _svc()
     case = storage.get_case(case_id)

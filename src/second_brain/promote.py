@@ -113,11 +113,11 @@ def promote(storage: Storage, case: Case, target: str) -> dict:
     if target == "fiche":
         content = fiche_content(case)
         path = storage.write_fiche(slug, content)
-        rel = f"kb/fiches/{path.name}"
+        rel = f"fiches/{path.name}"
     else:
         content = skill_content(case)
         path = storage.write_skill(slug, content)
-        rel = f"kb/skills/{slug}/SKILL.md"
+        rel = f"skills/{slug}/SKILL.md"
 
     case.promotion = Promotion(
         target=target,

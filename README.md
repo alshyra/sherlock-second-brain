@@ -8,10 +8,10 @@ fiches MD et des skills, tout ce qui n'est **pas encore validé** vit dans des *
 source de vérité (fichiers)                      index dérivé (regénérable)
 ────────────────────────────────────             ────────────────────────────
 <data_dir>/
-  cases/<case-id>/case.json          ──→   chromadb/ (vector, gitignoré)
+  cases/<case-id>/case.json          ──→   vector/ (chromadb, gitignoré)
   cases/<case-id>/evidence/*.log           + recherche lexicale (fallback)
-  kb/fiches/*.md
-  kb/skills/<slug>/SKILL.md
+  fiches/*.md
+  skills/<slug>/SKILL.md
 ```
 
 ## Stack
