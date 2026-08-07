@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/alshyra/second-brain/schema/case.schema.json",
+  "title": "Case",
+  "description": "Dossier d'investigation transitoire. Tant qu'un sujet n'est pas validé, il vit dans un case. Une fois résolu, il est promu en fiche ou skill via le MCP.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "status",
+    "goal",
+    "context",
+    "hypotheses",
+    "steps",
+    "findings",
+    "evidence",
+    "tags",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^case-\\d{4}-\\d{2}-\\d{2}-\\d{3}$",
+      "description": "Identifiant unique du case."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "in_progress", "resolved", "abandoned"]
+    },
+    "goal": {
+      "type": "string",
+      "description": "Objectif de l'investigation (debug, plan, recherche)."
+    },
+    "context": {
+      "type": "string",
+      "description": "Contexte, observations initiales, liens utiles."
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "test"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^h\\d+$"
+          },
+          "statement": {
+            "type": "string",
+            "description": "L'hypothèse, formulée testable."
+          },
+          "test": {
+            "type": "string",
+            "description": "Comment la tester."
+          },
+          "result": {
+            "type": ["string", "null"],
+            "enum": ["confirmed", "refuted", "inconclusive", null]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Chemin relatif vers une preuve dans evidence/."
+            }
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["order", "action"],
+        "properties": {
+          "order": {
+            "type": "integer"
+          },
+          "action": {
+            "type": "string",
+            "description": "Action entreprise."
+          },
+          "result": {
+            "type": ["string", "null"],
+            "description": "Résultat observé."
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Chemins relatifs vers les preuves associées."
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Constats confirmés au fil de l'investigation."
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "type", "summary"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Chemin relatif (evidence/<fichier>) vers la preuve stockée."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["log", "file", "note", "image", "link"]
+          },
+          "summary": {
+            "type": "string",
+            "description": "Résumé de ce que prouve cette pièce."
+          }
+        }
+      }
+    },
+    "conclusion": {
+      "type": ["string", "null"],
+      "description": "Conclusion une fois le case résolu."
+    },
+    "promotion": {
+      "type": ["object", "null"],
+      "required": ["target", "path", "date"],
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": ["fiche", "skill"]
+        },
+        "path": {
+          "type": "string",
+          "description": "Chemin relatif du fichier promu dans kb/."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "URLs ou refs utiles."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
