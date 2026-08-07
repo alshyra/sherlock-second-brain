@@ -1,0 +1,40 @@
+---
+name: {{ case.title|linkify }}
+description: >
+  {{ case.goal }}
+---
+
+# {{ case.title }}
+
+Promu depuis `{{ case.id }}`. {{ case.goal }}
+{% if case.context %}
+
+## Contexte
+
+{{ case.context }}
+{% endif %}
+
+## Procédure
+{% if case.steps %}
+{% for step in case.steps %}
+{{ step.order }}. {{ step.action }}
+{% if step.result %}   - Résultat : {{ step.result }}
+{% endif %}
+{% endfor %}
+{% else %}
+_Aucune étape enregistrée._
+{% endif %}
+{% if case.findings %}
+
+## Points d'attention
+{% for finding in case.findings %}
+- {{ finding }}
+{% endfor %}
+{% endif %}
+{% if case.references %}
+
+## Références
+{% for ref in case.references %}
+- {{ ref }}
+{% endfor %}
+{% endif %}

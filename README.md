@@ -20,7 +20,8 @@ source de vérité (fichiers)                      index dérivé (regénérable
 - [FastMCP](https://github.com/jlowin/fastmcp) (stdio)
 - ChromaDB + fastembed (index vectoriel, *optionnel* : `[vector]`)
 - jsonschema (validation des cases)
-- Architecture hexagonale : `domain/` (pydantic pur) · `application/` (cas d'usage + ports) · `adapters/` (filesystem, chroma, DTO MCP)
+- jinja2 (rendu des fiches / skills promues)
+- Architecture hexagonale : `domain/` (pydantic pur) · `application/` (cas d'usage + ports) · `adapters/` (filesystem, chroma, DTO MCP, templates)
 
 ## Installation (dans un projet)
 

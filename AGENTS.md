@@ -29,7 +29,8 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
   - `application/` — use cases depending on `ports.py` Protocols only:
     `case_service.py` (`CaseService`), `promotion_service.py` (`PromotionService`)
   - `adapters/` — concrete implementations: `filesystem.py` (`Storage`), `chroma.py`
-    (`VectorIndex`), `dto/case_update.py` (`CaseUpdateFields` for the `case_update` fields)
+    (`VectorIndex`), `dto/case_update.py` (`CaseUpdateFields` for the `case_update` fields),
+    `templates/` (Jinja2: `fiche.md.j2`, `skill.md.j2` rendered by `PromotionService`)
 - Data layout under `SECOND_BRAIN_DATA_DIR` (default `~/second-brain-data`):
   - `cases/<case-id>/case.json` + `cases/<case-id>/evidence/*` — `case-id` = `case-YYYY-MM-DD-NNN` (per-day counter)
   - `fiches/<slug>.md`, `skills/<slug>/SKILL.md`

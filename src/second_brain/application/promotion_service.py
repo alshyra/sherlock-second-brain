@@ -1,9 +1,15 @@
-"""Cas d'usage : promotion d'un case résolu en fiche ou en skill."""
+"""Cas d'usage : promotion d'un case résolu en fiche ou en skill.
+
+Le rendu markdown (fiche MD / SKILL.md) est délégué à des templates Jinja2
+dans ``adapters/templates/``, chargés une seule fois.
+"""
 
 from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+
+from jinja2 import Environment, PackageLoader
 
 from second_brain.application.ports import CaseRepository, FicheRepository, SkillRepository
 from second_brain.domain.models.case import Case
@@ -18,7 +24,7 @@ def _linkify(text: str) -> str:
     return slugify(re.sub(r"[`*_#\[\]()]", "", text))
 
 
-def _fmt(iso: str) -> str:
+def _fmt_date(iso: str) -> str:
     try:
         return datetime.fromisoformat(iso).strftime("%Y-%m-%d")
     except ValueError:
@@ -41,87 +47,25 @@ class PromotionService:
         self._cases = cases
         self._fiches = fiches
         self._skills = skills
+        self._env = Environment(
+            loader=PackageLoader("second_brain.adapters", "templates"),
+            autoescape=False,
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        self._env.filters["fmt_date"] = _fmt_date
+        self._env.filters["linkify"] = _linkify
+        self._env.filters["backtick"] = lambda tag: f"`{tag}`"
+        self._fiche_template = self._env.get_template("fiche.md.j2")
+        self._skill_template = self._env.get_template("skill.md.j2")
 
     def fiche_content(self, case: Case) -> str:
         """Render a validated fiche (MD) from a resolved case."""
-        lines: list[str] = []
-        lines.append(f"# {case.title}")
-        lines.append("")
-        lines.append(
-            f"> Statut : validé (promu depuis `{case.id}` le {_fmt(case.promotion.date)})"
-            if case.promotion
-            else ""
-        )
-        lines.append("")
-        lines.append(f"**Objectif :** {case.goal}")
-        if case.context:
-            lines.append("")
-            lines.append(f"**Contexte :** {case.context}")
-        lines.append("")
-        lines.append("## Constats")
-        if case.findings:
-            for finding in case.findings:
-                lines.append(f"- {finding}")
-        else:
-            lines.append("- _Aucun constat enregistré._")
-        if case.conclusion:
-            lines.append("")
-            lines.append("## Conclusion")
-            lines.append("")
-            lines.append(case.conclusion)
-        if case.references:
-            lines.append("")
-            lines.append("## Références")
-            lines.append("")
-            for ref in case.references:
-                lines.append(f"- {ref}")
-        if case.tags:
-            lines.append("")
-            lines.append("## Tags")
-            lines.append("")
-            lines.append(" ".join(f"`{t}`" for t in case.tags))
-        return "\n".join(lines) + "\n"
+        return self._fiche_template.render(case=case)
 
     def skill_content(self, case: Case) -> str:
         """Render a skill (SKILL.md) from a resolved case (procedure)."""
-        lines: list[str] = []
-        lines.append("---")
-        lines.append(f"name: {_linkify(case.title)}")
-        lines.append("description: >")
-        lines.append(f"  {case.goal}")
-        lines.append("---")
-        lines.append("")
-        lines.append(f"# {case.title}")
-        lines.append("")
-        lines.append(f"Promu depuis `{case.id}`. {case.goal}")
-        if case.context:
-            lines.append("")
-            lines.append("## Contexte")
-            lines.append("")
-            lines.append(case.context)
-        lines.append("")
-        lines.append("## Procédure")
-        lines.append("")
-        if case.steps:
-            for step in case.steps:
-                lines.append(f"{step.order}. {step.action}")
-                if step.result:
-                    lines.append(f"   - Résultat : {step.result}")
-        else:
-            lines.append("_Aucune étape enregistrée._")
-        if case.findings:
-            lines.append("")
-            lines.append("## Points d'attention")
-            lines.append("")
-            for finding in case.findings:
-                lines.append(f"- {finding}")
-        if case.references:
-            lines.append("")
-            lines.append("## Références")
-            lines.append("")
-            for ref in case.references:
-                lines.append(f"- {ref}")
-        return "\n".join(lines) + "\n"
+        return self._skill_template.render(case=case)
 
     def promote(self, case: Case, target: str) -> dict[str, str]:
         """Promote a resolved case into a fiche or a skill. Returns metadata."""
