@@ -205,10 +205,19 @@ def case_promote(case_id: str, target: str) -> dict[str, str]:
 
 @mcp.tool()
 def memory_add(summary: str, content: str, tags: str = "", references: str = "", source: str = "") -> Memory:
-    """Add a memory: a standalone note to remember, not tied to a case.
+    """Add a memory: a standalone note to remember, not tied to a case. Mutating.
 
-    Use for quick facts, preferences, gotchas ("the NAS runs Fedora 44").
-    ``tags`` and ``references`` are comma-separated strings.
+    Writes ``memories/<id>.md`` and makes it immediately searchable. Use for
+    quick facts, preferences or gotchas ("the NAS runs Fedora 44") that do not
+    warrant a full investigation. Promote it with ``memory_promote`` once the
+    fact becomes validated knowledge.
+
+    Args:
+        summary: One-line title of the memory.
+        content: Free-form markdown body of the note.
+        tags: Comma-separated tags, e.g. ``infra,nas``.
+        references: Comma-separated source references or URLs.
+        source: Optional origin of the memory (e.g. a project or conversation).
     """
     return _memories.create(
         summary=summary,
@@ -221,21 +230,39 @@ def memory_add(summary: str, content: str, tags: str = "", references: str = "",
 
 @mcp.tool()
 def memory_get(memory_id: str) -> Memory:
-    """Read a memory by its id (e.g. ``mem-2026-08-08-001``)."""
+    """Read a memory by its id. Read-only, no side effects.
+
+    Raises an error if the id does not exist. Use ``memory_list`` or
+    ``memory_search`` to find ids first.
+
+    Args:
+        memory_id: Memory identifier, e.g. ``mem-2026-08-08-001``.
+    """
     return _memories.get(memory_id)
 
 
 @mcp.tool()
 def memory_list(tag: str = "") -> list[Memory]:
-    """List memories, optionally filtered by ``tag``."""
+    """List memories, optionally filtered by ``tag``. Read-only.
+
+    Use ``memory_search`` for semantic ranking instead.
+
+    Args:
+        tag: Only return memories carrying this tag (empty = all).
+    """
     return _memories.list_memories(tag=tag)
 
 
 @mcp.tool()
 def memory_search(query: str, top_k: int = 5) -> list[dict[str, object]]:
-    """Semantic search restricted to memories (hydrated with full content).
+    """Semantic search restricted to memories. Read-only.
 
-    Memories are also found by the broader ``case_search``.
+    Returns hydrated memories (summary, content, tags, references, source,
+    score). Memories are also found by the broader ``case_search``.
+
+    Args:
+        query: Free-text search query (any language, multilingual embeddings).
+        top_k: Number of results to return (default 5).
     """
     matches = _memories.search(query, top_k=top_k)
     hydrated: list[dict[str, object]] = []
@@ -264,7 +291,18 @@ def memory_update(
     references: list[str] | None = None,
     source: str = "",
 ) -> Memory:
-    """Update a memory. Only the provided fields are replaced."""
+    """Update a memory. Mutating, only provided fields are replaced.
+
+    Persists the change and refreshes the search index.
+
+    Args:
+        memory_id: Memory identifier, e.g. ``mem-2026-08-08-001``.
+        summary: New one-line title (empty = keep current).
+        content: New markdown body (empty = keep current).
+        tags: Replace the memory tags with this list (None = keep current).
+        references: Replace the memory references with this list (None = keep current).
+        source: New source (empty = keep current).
+    """
     return _memories.update(
         memory_id,
         summary=summary or None,
@@ -277,18 +315,27 @@ def memory_update(
 
 @mcp.tool()
 def memory_delete(memory_id: str) -> dict[str, str]:
-    """Delete a memory."""
+    """Delete a memory. Destructive and irreversible.
+
+    Removes ``memories/<id>.md`` and its search-index entry.
+
+    Args:
+        memory_id: Memory identifier, e.g. ``mem-2026-08-08-001``.
+    """
     _memories.delete(memory_id)
     return {"deleted": memory_id}
 
 
 @mcp.tool()
 def memory_promote(memory_id: str) -> dict[str, str]:
-    """Promote a memory into a validated fiche.
+    """Promote a memory into a validated fiche. Mutating.
 
-    Promotion is the validation act: a fiche is generated from the memory
-    (summary as title, content as body) and written to the KB. The memory is
-    marked as promoted and cannot be promoted twice.
+    Promotion is the validation act: generates ``fiches/<slug>.md`` from the
+    memory (summary as title, content as body), writes it to the KB, reindexes
+    it and marks the memory as promoted (cannot be promoted twice).
+
+    Args:
+        memory_id: Memory identifier, e.g. ``mem-2026-08-08-001``.
     """
     memory = _memories.get(memory_id)
     result = _promotions.promote_memory(memory)
