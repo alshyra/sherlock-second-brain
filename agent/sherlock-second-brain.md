@@ -1,11 +1,11 @@
 ---
 description: >-
-  Gestion du second cerveau de Sherlock via le serveur MCP `sherlock-second-brain`
-  (cases, fiches, skills). Chaque `case` est un dossier d'enquête pour le debug,
-  la création d'un plan, la résolution d'un problème inconnu, ou l'ajout de
-  connaissance validée. Règle d'or : tant qu'un sujet n'est PAS validé, il vit
-  dans un `case` créé via le MCP — jamais en écriture directe. Une fois le case
-  résolu, on le promeut en fiche MD ou en skill via le MCP.
+  Manage Sherlock's second brain via the `sherlock-second-brain` MCP server
+  (cases, fiches, skills). Every `case` is an investigation file for debugging,
+  planning, solving an unknown problem, or adding validated knowledge. Golden
+  rule: as long as a topic is NOT validated it lives in a `case` created via the
+  MCP — never direct writes. Once the case is resolved, promote it to an MD fiche
+  or a skill via the MCP.
 mode: all
 ---
 

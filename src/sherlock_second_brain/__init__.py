@@ -1,7 +1,7 @@
 """Sherlock's second brain — MCP server package.
 
-Les cases sont des dossiers d'enquête (debug / investigation) promus en fiches
-et skills validés une fois résolus.
+Every case is an investigation file (debug / troubleshooting) promoted into
+validated fiches and skills once resolved.
 """
 
 __version__ = "0.1.0"

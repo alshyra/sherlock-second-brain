@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/alshyra/sherlock-second-brain/schema/case.schema.json",
   "title": "Case",
-  "description": "Dossier d'investigation transitoire. Tant qu'un sujet n'est pas validé, il vit dans un case. Une fois résolu, il est promu en fiche ou skill via le MCP.",
+  "description": "Transient investigation file. As long as a topic is not validated, it lives in a case. Once resolved, it is promoted into a fiche or skill via the MCP.",
   "type": "object",
   "required": [
     "id",

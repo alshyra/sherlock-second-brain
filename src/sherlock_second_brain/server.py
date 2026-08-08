@@ -1,9 +1,9 @@
 """FastMCP server exposing Sherlock's second brain as local MCP tools (stdio).
 
-Chaque ``case`` est un dossier d'enquête (debug / investigation) ; une fois
-résolu, il est promu en fiche ou skill validé. Composition root : instancie
-les adapters concrets, les services applicatifs et expose les outils MCP qui
-délèguent aux services.
+Every ``case`` is an investigation file (debug / troubleshooting); once resolved
+it is promoted into a validated fiche or skill. Composition root: instantiates
+the concrete adapters, the application services and exposes the MCP tools that
+delegate to those services.
 """
 
 from __future__ import annotations
