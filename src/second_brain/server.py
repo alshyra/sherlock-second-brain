@@ -11,8 +11,11 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
+from second_brain.adapters.chroma import VectorIndex
 from second_brain.adapters.dto.case_update import CaseUpdateFields
 from second_brain.adapters.filesystem import Storage
+from second_brain.adapters.hybrid import HybridIndex
+from second_brain.adapters.lexical import LexicalIndex
 from second_brain.application.case_service import CaseService
 from second_brain.application.ports import SearchIndex
 from second_brain.application.promotion_service import PromotionService
@@ -23,14 +26,8 @@ DEFAULT_DATA_DIR = os.environ.get("SECOND_BRAIN_DATA_DIR", str(Path.home() / "se
 mcp = FastMCP("second-brain")
 
 _storage = Storage(DEFAULT_DATA_DIR)
-try:  # extra [vector] présent
-    from second_brain.adapters.chroma import VectorIndex
-
-    _index: SearchIndex = VectorIndex(_storage, _storage.vector_dir)
-except ImportError:
-    from second_brain.adapters.lexical import LexicalIndex
-
-    _index = LexicalIndex(_storage)
+_vector = VectorIndex(_storage, _storage.vector_dir)
+_index: SearchIndex = HybridIndex(_vector, LexicalIndex(_storage))
 _cases = CaseService(_storage, _index)
 _promotions = PromotionService(_storage, _storage, _storage)
 

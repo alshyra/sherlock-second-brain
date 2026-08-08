@@ -1,18 +1,21 @@
 """Adapter ChromaDB : index vectoriel sur les fiches, cases et skills.
 
-Module *optionnel* : il n'est importé que si l'extra ``[vector]`` (chromadb +
-fastembed) est installé. L'optionnalité est gérée à la composition root
-(``server.py``) par un try/except d'import, jamais par import paresseux.
+Chroma est une dépendance obligatoire : la recherche est hybride (vectoriel +
+lexical) et ``server.py`` compose ``VectorIndex`` avec ``LexicalIndex`` via
+``HybridIndex``. Le modèle d'embedding est multilingue (MiniLM-L12) pour une KB
+en français.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from chromadb import PersistentClient
+from chromadb.api.types import Documents, Embeddings
 from chromadb.config import Settings
+from fastembed import TextEmbedding
 
 from second_brain.adapters.documents import enumerate_documents
 from second_brain.application.ports import DocumentSource, SearchIndex
@@ -20,15 +23,65 @@ from second_brain.application.ports import DocumentSource, SearchIndex
 logger = logging.getLogger(__name__)
 
 _COLLECTION = "second_brain"
-_EMBED_MODEL = "BAAI/bge-small-en-v1.5"
+EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+
+class FastembedEmbeddingFunction:
+    """Embedding function Chroma adossée à fastembed (modèle multilingue).
+
+    L'instance fastembed est créée paresseusement au premier appel (le modèle
+    est téléchargé une fois puis mis en cache localement). L'interface est
+    celle dictée par Chroma (``EmbeddingFunction``) — volontairement non
+    subtypée ici car les generics de chroma sont trop stricts pour fastembed.
+    """
+
+    def __init__(self, model_name: str = EMBED_MODEL) -> None:
+        self._model_name = model_name
+        self._model: Any = None  # noqa: ANN401  # API fastembed dynamique
+
+    def __call__(self, input: Documents) -> Embeddings:
+        if self._model is None:
+            self._model = TextEmbedding(model_name=self._model_name)
+        return cast(Embeddings, list(self._model.embed(input)))
+
+    def embed_query(self, input: Documents) -> Embeddings:
+        return self.__call__(input)
+
+    @staticmethod
+    def name() -> str:
+        return "fastembed_multilingual"
+
+    def get_config(self) -> dict[str, str]:
+        return {"model_name": self._model_name}
+
+    @classmethod
+    def build_from_config(cls, config: dict[str, str]) -> FastembedEmbeddingFunction:
+        return cls(model_name=config.get("model_name", EMBED_MODEL))
+
+    def is_legacy(self) -> bool:
+        return False
+
+    def supported_spaces(self) -> list[str]:
+        return ["cosine", "l2", "ip"]
+
+    def default_space(self) -> str:
+        return "cosine"
 
 
 class VectorIndex(SearchIndex):
     """Thin wrapper around a persistent ChromaDB collection."""
 
-    def __init__(self, source: DocumentSource, vector_dir: Path) -> None:
+    def __init__(
+        self,
+        source: DocumentSource,
+        vector_dir: Path,
+        embedding_function: Any = None,  # noqa: ANN401  # interface dictée par Chroma
+    ) -> None:
         self._source = source
         self._vector_dir = vector_dir
+        self._embedding_function: Any = (  # noqa: ANN401  # interface dictée par Chroma
+            embedding_function or FastembedEmbeddingFunction()
+        )
         self._client: Any = None  # noqa: ANN401  # API ChromaDB dynamique
         self._collection: Any = None  # noqa: ANN401  # API ChromaDB dynamique
 
@@ -36,14 +89,22 @@ class VectorIndex(SearchIndex):
     def available(self) -> bool:
         return True
 
-    def _ensure(self) -> Any:  # noqa: ANN401  # API ChromaDB dynamique
-        if self._collection is None:
+    def _ensure(self, reset: bool = False) -> Any:  # noqa: ANN401  # API ChromaDB dynamique
+        if self._client is None:
             self._vector_dir.mkdir(parents=True, exist_ok=True)
             self._client = PersistentClient(
                 path=str(self._vector_dir), settings=Settings(anonymized_telemetry=False)
             )
+        if self._collection is None:
+            if reset:
+                try:
+                    self._client.delete_collection(_COLLECTION)
+                except Exception:  # collection absente au premier rebuild
+                    pass
             self._collection = self._client.get_or_create_collection(
-                name=_COLLECTION, metadata={"hnsw:space": "cosine"}
+                name=_COLLECTION,
+                embedding_function=self._embedding_function,
+                metadata={"hnsw:space": "cosine"},
             )
         return self._collection
 
@@ -53,7 +114,7 @@ class VectorIndex(SearchIndex):
 
     def rebuild(self) -> int:
         """Recreate the collection from all source files. Returns doc count."""
-        col = self._ensure()
+        col = self._ensure(reset=True)
         docs = self._documents()
         for batch_start in range(0, len(docs), 100):
             batch = docs[batch_start : batch_start + 100]

@@ -1,10 +1,10 @@
-"""Tests des index de recherche (lexical pur + sémantique ChromaDB)."""
+"""Tests de la recherche hybride : legs vectoriel, lexical et fusion RRF."""
 
 from __future__ import annotations
 
-import pytest
-
+from second_brain.adapters.chroma import VectorIndex
 from second_brain.adapters.filesystem import Storage
+from second_brain.adapters.hybrid import HybridIndex
 from second_brain.adapters.lexical import LexicalIndex
 
 
@@ -12,6 +12,10 @@ def _seed(storage: Storage) -> None:
     storage.write_fiche(
         "traefik-ssl-renew",
         "# Traefik SSL renewal\nLe renouvellement Let's Encrypt échoue quand le record DNS TXT est trop long.",
+    )
+    storage.write_fiche(
+        "postgres-backup",
+        "# Sauvegarde PostgreSQL\nLe backup quotidien échoue quand l'espace disque est plein.",
     )
     case = storage.create_case(
         title="Cert échec",
@@ -21,37 +25,60 @@ def _seed(storage: Storage) -> None:
     storage.add_evidence(case.id, "invalid response from http-01", "cause", "01.log")
 
 
-def test_lexical_search_finds_fiche(storage: Storage) -> None:
+def _hybrid(storage: Storage) -> HybridIndex:
+    return HybridIndex(VectorIndex(storage, storage.vector_dir), LexicalIndex(storage))
+
+
+def test_vector_leg_returns_semantic_results(storage: Storage) -> None:
+    _seed(storage)
+    idx = VectorIndex(storage, storage.vector_dir)
+    assert idx.rebuild() == 3  # 2 fiches + 1 case
+    results = idx.query("renouvellement certificat DNS record trop long", top_k=5)
+    assert any(r["id"] == "fiche:traefik-ssl-renew" for r in results)
+
+
+def test_lexical_leg_returns_token_overlap(storage: Storage) -> None:
     _seed(storage)
     idx = LexicalIndex(storage)
-    results = idx.query("renouvellement TLS échoue record trop long", top_k=5)
-    assert results, "expected at least one result"
-    assert any(r["id"] == "fiche:traefik-ssl-renew" for r in results)
+    results = idx.query("postgres backup disque plein", top_k=5)
+    assert any(r["id"] == "fiche:postgres-backup" for r in results)
 
 
 def test_lexical_returns_nothing_on_no_overlap(storage: Storage) -> None:
     _seed(storage)
-    idx = LexicalIndex(storage)
-    results = idx.query("zebre philosophie quantique", top_k=5)
-    assert results == []
+    assert LexicalIndex(storage).query("zebre philosophie quantique", top_k=5) == []
 
 
-def test_lexical_available_is_false(storage: Storage) -> None:
-    assert LexicalIndex(storage).available is False
-
-
-def test_lexical_rebuild_returns_zero(storage: Storage) -> None:
+def test_hybrid_fuses_rankings(storage: Storage) -> None:
     _seed(storage)
-    assert LexicalIndex(storage).rebuild() == 0
+    idx = _hybrid(storage)
+    idx.rebuild()
+    results = idx.query("renouvellement TLS record trop long", top_k=5)
+    assert results, "expected at least one result"
+    assert any(r["id"] == "fiche:traefik-ssl-renew" for r in results)
 
 
-def test_chroma_index_builds_when_available(storage: Storage) -> None:
-    pytest.importorskip("chromadb")
-    from second_brain.adapters.chroma import VectorIndex
+def test_hybrid_keeps_doc_found_by_lexical_only(storage: Storage) -> None:
+    _seed(storage)
+    idx = _hybrid(storage)
+    idx.rebuild()
+    results = idx.query("backup quotidien espace disque", top_k=5)
+    # le lexical retrouve la fiche postgres-backup même si le vectoriel la rate
+    assert any(r["id"] == "fiche:postgres-backup" for r in results)
 
+
+def test_hybrid_rebuild_uses_vector(storage: Storage) -> None:
+    _seed(storage)
+    idx = _hybrid(storage)
+    assert idx.rebuild() == 3
+    assert idx.available is True
+
+
+def test_rebuild_resets_collection_before_reinsert(storage: Storage) -> None:
     _seed(storage)
     idx = VectorIndex(storage, storage.vector_dir)
-    assert idx.available is True
-    assert idx.rebuild() == 2  # 1 fiche + 1 case
-    results = idx.query("renouvellement TLS échoue record trop long", top_k=5)
-    assert any(r["id"] == "fiche:traefik-ssl-renew" for r in results)
+    assert idx.rebuild() == 3
+    storage.write_fiche("nouvelle-fiche", "# Nouvelle fiche\nContenu ajouté plus tard.")
+    assert idx.rebuild() == 4
+    results = idx.query("nouvelle fiche contenu ajouté", top_k=5)
+    assert any(r["id"] == "fiche:nouvelle-fiche" for r in results)

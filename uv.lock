@@ -2664,16 +2664,12 @@ name = "second-brain"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "chromadb" },
+    { name = "fastembed" },
     { name = "fastmcp" },
     { name = "jinja2" },
     { name = "jsonschema" },
     { name = "pydantic" },
-]
-
-[package.optional-dependencies]
-vector = [
-    { name = "chromadb" },
-    { name = "fastembed" },
 ]
 
 [package.dev-dependencies]
@@ -2685,14 +2681,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chromadb", marker = "extra == 'vector'", specifier = ">=0.5.0" },
-    { name = "fastembed", marker = "extra == 'vector'", specifier = ">=0.3.0" },
+    { name = "chromadb", specifier = ">=0.5.0" },
+    { name = "fastembed", specifier = ">=0.3.0" },
     { name = "fastmcp", specifier = ">=2.0.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
 ]
-provides-extras = ["vector"]
 
 [package.metadata.requires-dev]
 dev = [

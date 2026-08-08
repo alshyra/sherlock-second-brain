@@ -11,7 +11,7 @@ uv run ruff check src/ tests/                    # lint (Astral, E,F,I,W,UP,B,AN
 uv run ty check                                  # type checking (Astral)
 uv run pytest tests/ -v                          # all tests (no services needed, tmp_path fixtures)
 uv run pytest tests/test_storage.py::test_slugify -v   # single test
-uv sync --extra vector                           # add optional chromadb+fastembed
+uv sync                                           # installs deps (chromadb+fastembed inclus)
 ```
 
 Required verification order: `ruff check` → `ty check` → `pytest`.
@@ -29,8 +29,10 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
   - `application/` — use cases depending on `ports.py` Protocols only:
     `case_service.py` (`CaseService`), `promotion_service.py` (`PromotionService`)
   - `adapters/` — concrete implementations: `filesystem.py` (`Storage`), `chroma.py`
-    (`VectorIndex`), `dto/case_update.py` (`CaseUpdateFields` for the `case_update` fields),
-    `templates/` (Jinja2: `fiche.md.j2`, `skill.md.j2` rendered by `PromotionService`)
+    (`VectorIndex` + `FastembedEmbeddingFunction` multilingue), `lexical.py`
+    (`LexicalIndex`), `hybrid.py` (`HybridIndex` RRF), `dto/case_update.py`
+    (`CaseUpdateFields` for the `case_update` fields), `templates/` (Jinja2:
+    `fiche.md.j2`, `skill.md.j2` rendered by `PromotionService`)
 - Data layout under `SECOND_BRAIN_DATA_DIR` (default `~/second-brain-data`):
   - `cases/<case-id>/case.json` + `cases/<case-id>/evidence/*` — `case-id` = `case-YYYY-MM-DD-NNN` (per-day counter)
   - `fiches/<slug>.md`, `skills/<slug>/SKILL.md`
@@ -38,17 +40,18 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
 - `schema/case.schema.json` is the source of truth: `Storage._save_case` validates every case
   against it (`SCHEMA_PATH` resolved by walking up to the repo root). If you touch the schema,
   keep writes compatible or `test_written_case_matches_json_schema` fails.
-- Vector index falls back to lexical matching when chromadb is missing; doc IDs are
-  `fiche:<slug>`, `case:<id>`, `skill:<slug>`. `chroma.py` (VectorIndex) est un module
-  optionnel : `server.py` le sélectionne via un `try/except` d'import, sinon `lexical.py`
-  (`LexicalIndex`). L'énumération des documents est partagée dans `adapters/documents.py`.
+- Search is hybrid: `server.py` composes `HybridIndex(VectorIndex, LexicalIndex)` and
+  fuses rankings by RRF. ChromaDB is a mandatory dependency (no fallback). The embedding
+  model is multilingual (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`,
+  downloaded at first `index_rebuild`). Doc IDs are `fiche:<slug>`, `case:<id>`,
+  `skill:<slug>`. Document enumeration is shared in `adapters/documents.py`.
 - `CaseService` maintains the index on every mutation (update/evidence/status/delete).
 
 ## Conventions de code
 
-- **Pas de lazy import** : les dépendances optionnelles (chromadb/[vector]) se gèrent à la
-  composition root (`server.py`) par `try/except` d'import en haut de module — jamais par
-  `import` paresseux dans le corps des fonctions.
+- **Pas de lazy import** : les imports se font en haut de module, jamais dans le corps des
+  fonctions. Les dépendances optionnelles (aucune aujourd'hui : chromadb+fastembed sont
+  obligatoires) se géreraient à la composition root par `try/except` d'import.
 
 ## Domain workflow (matches `agent/second-brain.md`)
 

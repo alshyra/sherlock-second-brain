@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import pytest
 
+from second_brain.adapters.chroma import VectorIndex
 from second_brain.adapters.filesystem import Storage
+from second_brain.adapters.hybrid import HybridIndex
 from second_brain.adapters.lexical import LexicalIndex
 from second_brain.application.case_service import CaseService
 from second_brain.domain.errors import CaseNotFoundError
 
 
 def _service(storage: Storage) -> CaseService:
-    index = LexicalIndex(storage)
+    index = HybridIndex(VectorIndex(storage, storage.vector_dir), LexicalIndex(storage))
     return CaseService(storage, index)
 
 
