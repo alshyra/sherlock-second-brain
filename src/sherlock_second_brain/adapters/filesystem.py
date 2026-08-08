@@ -125,18 +125,6 @@ class Storage:
         except jsonschema.ValidationError as exc:
             raise CaseValidationError(exc.message) from exc
 
-    def _save_case(self, case: Case) -> None:
-        rel = self._case_path(case.id)
-        self._validate_case(case)
-        _atomic_write(self.root / rel, case.model_dump_json(indent=2))
-
-    def _validate_case(self, case: Case) -> None:
-        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-        try:
-            jsonschema.validate(case.model_dump(), schema)
-        except jsonschema.ValidationError as exc:
-            raise CaseValidationError(exc.message) from exc
-
     def save_case(self, case: Case) -> None:
         """Persist a case (create or update) as ``cases/<id>/case.json``."""
         with _LOCK:
