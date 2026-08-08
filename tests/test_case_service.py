@@ -47,3 +47,14 @@ def test_delete_removes_case(storage: Storage) -> None:
     svc.delete(case.id)
     with pytest.raises(CaseNotFoundError):
         svc.get(case.id)
+
+
+def test_list_cases_filters_by_status_and_tag(storage: Storage) -> None:
+    svc = _service(storage)
+    a = svc.create(title="a", goal="g", tags=["traefik"])
+    b = svc.create(title="b", goal="g", tags=["nas"])
+    svc.set_status(b.id, "resolved")
+
+    assert [c.id for c in svc.list_cases()] == [a.id, b.id]
+    assert [c.id for c in svc.list_cases(status="resolved")] == [b.id]
+    assert [c.id for c in svc.list_cases(tag="traefik")] == [a.id]

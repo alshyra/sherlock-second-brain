@@ -7,6 +7,7 @@ import uuid
 from datetime import UTC, datetime
 
 CASE_ID_PATTERN = r"^case-\d{4}-\d{2}-\d{2}-\d{3}$"
+MEMORY_ID_PATTERN = r"^mem-\d{4}-\d{2}-\d{2}-\d{3}$"
 
 
 def now_iso() -> str:

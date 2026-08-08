@@ -1,21 +1,21 @@
-"""Use case: lifecycle of investigation cases."""
+"""Use case: lifecycle of investigation cases (thin orchestration).
+
+Business rules live on the ``Case`` aggregate (domain). This service only
+orders the calls: allocate the id, mutate the domain object, persist, re-index.
+"""
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from sherlock_second_brain.application.ports import CaseRepository, SearchIndex
 from sherlock_second_brain.domain.models.case import Case
-from sherlock_second_brain.domain.models.hypothesis import Hypothesis
-from sherlock_second_brain.domain.models.step import Step
+from sherlock_second_brain.domain.text import slugify
 
 
 class CaseService:
-    """Orchestrates case operations through their ports.
-
-    Depends on no concrete adapter: ``CaseRepository`` for storage and
-    ``SearchIndex`` to keep the index up to date on every mutation.
-    """
+    """Coordinates case operations through their ports."""
 
     def __init__(self, repository: CaseRepository, index: SearchIndex) -> None:
         self._repository = repository
@@ -29,19 +29,27 @@ class CaseService:
         tags: list[str] | None = None,
         references: list[str] | None = None,
     ) -> Case:
-        return self._repository.create_case(
+        case = Case.create_case(
+            self._repository.next_case_id(),
             title=title,
             goal=goal,
             context=context,
             tags=tags,
             references=references,
         )
+        self._repository.save_case(case)
+        return case
 
     def get(self, case_id: str) -> Case:
         return self._repository.get_case(case_id)
 
     def list_cases(self, status: str = "", tag: str = "") -> list[Case]:
-        return self._repository.list_cases(status=status or None, tag=tag or None)
+        cases = self._repository.list_cases()
+        if status:
+            cases = [c for c in cases if c.status == status]
+        if tag:
+            cases = [c for c in cases if tag in c.tags]
+        return cases
 
     def search(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         return self._index.query(query, top_k=top_k)
@@ -61,49 +69,34 @@ class CaseService:
         references: list[str] | None = None,
     ) -> Case:
         case = self._repository.get_case(case_id)
-
         if finding:
-            case.findings.append(finding)
+            case.add_finding(finding)
         if step_action:
-            case.steps = [
-                *case.steps,
-                Step(
-                    order=len(case.steps) + 1,
-                    action=step_action,
-                    result=step_result,
-                ),
-            ]
+            case.add_step(step_action, step_result)
         if conclusion:
-            case.conclusion = conclusion
+            case.set_conclusion(conclusion)
         if hypothesis_statement:
-            case.hypotheses = [
-                *case.hypotheses,
-                Hypothesis(
-                    id=f"h{len(case.hypotheses) + 1}",
-                    statement=hypothesis_statement,
-                    test=hypothesis_test or "",
-                ),
-            ]
+            case.add_hypothesis(hypothesis_statement, hypothesis_test or "")
         if hypothesis_result:
-            if case.hypotheses:
-                case.hypotheses[-1].result = hypothesis_result
+            case.set_hypothesis_result(hypothesis_result)
         if tags is not None:
-            case.tags = tags
+            case.set_tags(tags)
         if references is not None:
-            case.references = references
-
-        updated = self._repository.update_case(case)
+            case.set_references(references)
+        self._repository.save_case(case)
         self._index.upsert_single(
-            f"case:{updated.id}", str(updated.model_dump()), {"kind": "case", "id": updated.id}
+            f"case:{case.id}", str(case.model_dump()), {"kind": "case", "id": case.id}
         )
-        return updated
+        return case
 
     def add_evidence(
         self, case_id: str, content: str, summary: str, filename: str = ""
     ) -> Case:
-        case = self._repository.add_evidence(
-            case_id, content, summary, filename or None
-        )
+        case = self._repository.get_case(case_id)
+        fname = filename or f"{slugify(summary)}-{uuid.uuid4().hex[:6]}.txt"
+        rel = self._repository.write_evidence(case_id, fname, content)
+        case.add_evidence(summary, rel)
+        self._repository.save_case(case)
         self._index.upsert_single(
             f"case:{case.id}", str(case.model_dump()), {"kind": "case", "id": case.id}
         )
@@ -111,12 +104,12 @@ class CaseService:
 
     def set_status(self, case_id: str, status: str) -> Case:
         case = self._repository.get_case(case_id)
-        case.status = status
-        updated = self._repository.update_case(case)
+        case.set_status(status)
+        self._repository.save_case(case)
         self._index.upsert_single(
-            f"case:{updated.id}", str(updated.model_dump()), {"kind": "case", "id": updated.id}
+            f"case:{case.id}", str(case.model_dump()), {"kind": "case", "id": case.id}
         )
-        return updated
+        return case
 
     def delete(self, case_id: str) -> None:
         self._repository.delete_case(case_id)

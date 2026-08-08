@@ -19,9 +19,11 @@ from sherlock_second_brain.adapters.filesystem import Storage
 from sherlock_second_brain.adapters.hybrid import HybridIndex
 from sherlock_second_brain.adapters.lexical import LexicalIndex
 from sherlock_second_brain.application.case_service import CaseService
+from sherlock_second_brain.application.memory_service import MemoryService
 from sherlock_second_brain.application.ports import SearchIndex
 from sherlock_second_brain.application.promotion_service import PromotionService
 from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.memory import Memory
 
 DEFAULT_DATA_DIR = os.environ.get("SHERLOCK_BRAIN_DATA_DIR", str(Path.home() / "sherlock-second-brain-data"))
 
@@ -31,7 +33,8 @@ _storage = Storage(DEFAULT_DATA_DIR)
 _vector = VectorIndex(_storage, _storage.vector_dir)
 _index: SearchIndex = HybridIndex(_vector, LexicalIndex(_storage))
 _cases = CaseService(_storage, _index)
-_promotions = PromotionService(_storage, _storage, _storage)
+_memories = MemoryService(_storage, _index)
+_promotions = PromotionService(_storage, _storage, _storage, _storage)
 
 
 # ── Cases ────────────────────────────────────────────────────────
@@ -197,6 +200,111 @@ def case_promote(case_id: str, target: str) -> dict[str, str]:
     return result
 
 
+# ── Memories (standalone notes, no case) ────────────────────────
+
+
+@mcp.tool()
+def memory_add(summary: str, content: str, tags: str = "", references: str = "", source: str = "") -> Memory:
+    """Add a memory: a standalone note to remember, not tied to a case.
+
+    Use for quick facts, preferences, gotchas ("the NAS runs Fedora 44").
+    ``tags`` and ``references`` are comma-separated strings.
+    """
+    return _memories.create(
+        summary=summary,
+        content=content,
+        tags=[t.strip() for t in tags.split(",") if t.strip()],
+        references=[r.strip() for r in references.split(",") if r.strip()],
+        source=source.strip() or None,
+    )
+
+
+@mcp.tool()
+def memory_get(memory_id: str) -> Memory:
+    """Read a memory by its id (e.g. ``mem-2026-08-08-001``)."""
+    return _memories.get(memory_id)
+
+
+@mcp.tool()
+def memory_list(tag: str = "") -> list[Memory]:
+    """List memories, optionally filtered by ``tag``."""
+    return _memories.list_memories(tag=tag)
+
+
+@mcp.tool()
+def memory_search(query: str, top_k: int = 5) -> list[dict[str, object]]:
+    """Semantic search restricted to memories (hydrated with full content).
+
+    Memories are also found by the broader ``case_search``.
+    """
+    matches = _memories.search(query, top_k=top_k)
+    hydrated: list[dict[str, object]] = []
+    for match in matches:
+        memory = _memories.get(str(match["id"]).removeprefix("memory:"))
+        hydrated.append(
+            {
+                "id": memory.id,
+                "summary": memory.summary,
+                "content": memory.content,
+                "tags": memory.tags,
+                "references": memory.references,
+                "source": memory.source,
+                "score": match.get("score"),
+            }
+        )
+    return hydrated
+
+
+@mcp.tool()
+def memory_update(
+    memory_id: str,
+    summary: str = "",
+    content: str = "",
+    tags: list[str] | None = None,
+    references: list[str] | None = None,
+    source: str = "",
+) -> Memory:
+    """Update a memory. Only the provided fields are replaced."""
+    return _memories.update(
+        memory_id,
+        summary=summary or None,
+        content=content or None,
+        tags=tags,
+        references=references,
+        source=source or None,
+    )
+
+
+@mcp.tool()
+def memory_delete(memory_id: str) -> dict[str, str]:
+    """Delete a memory."""
+    _memories.delete(memory_id)
+    return {"deleted": memory_id}
+
+
+@mcp.tool()
+def memory_promote(memory_id: str) -> dict[str, str]:
+    """Promote a memory into a validated fiche.
+
+    Promotion is the validation act: a fiche is generated from the memory
+    (summary as title, content as body) and written to the KB. The memory is
+    marked as promoted and cannot be promoted twice.
+    """
+    memory = _memories.get(memory_id)
+    result = _promotions.promote_memory(memory)
+    _index.upsert_single(
+        f"fiche:{result['slug']}",
+        result["content"],
+        {"kind": "fiche", "slug": result["slug"]},
+    )
+    _index.upsert_single(
+        f"memory:{memory_id}",
+        f"{memory.summary}\n{memory.content}",
+        {"kind": "memory", "id": memory_id},
+    )
+    return result
+
+
 # ── KB (fiches) ──────────────────────────────────────────────────
 
 
@@ -209,7 +317,7 @@ def fiche_list() -> list[str]:
     Args:
         None.
     """
-    return [p.stem for p in _storage.list_fiches()]
+    return [doc.slug for doc in _storage.list_fiches()]
 
 
 @mcp.tool()
@@ -238,7 +346,7 @@ def fiche_write(slug: str, content: str) -> str:
     """
     path = _storage.write_fiche(slug, content)
     _index.upsert_single(f"fiche:{slug}", content, {"kind": "fiche", "slug": slug})
-    return str(path)
+    return path
 
 
 @mcp.tool()
@@ -267,7 +375,7 @@ def skill_list() -> list[str]:
     Args:
         None.
     """
-    return [p.parent.name for p in _storage.list_skills()]
+    return [doc.slug for doc in _storage.list_skills()]
 
 
 @mcp.tool()
@@ -296,7 +404,7 @@ def skill_write(slug: str, content: str) -> str:
     """
     path = _storage.write_skill(slug, content)
     _index.upsert_single(f"skill:{slug}", content, {"kind": "skill", "slug": slug})
-    return str(path)
+    return path
 
 
 @mcp.tool()

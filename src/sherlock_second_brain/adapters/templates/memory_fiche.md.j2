@@ -1,0 +1,24 @@
+# {{ memory.summary }}
+{% if memory.promotion %}
+
+> Status: validated (promoted from `{{ memory.id }}` on {{ memory.promotion.date|fmt_date }})
+{% endif %}
+{% if memory.source %}
+
+**Source:** {{ memory.source }}
+{% endif %}
+
+{{ memory.content }}
+{% if memory.references %}
+
+## References
+{% for ref in memory.references %}
+- {{ ref }}
+{% endfor %}
+{% endif %}
+{% if memory.tags %}
+
+## Tags
+
+{{ memory.tags|map("backtick")|join(" ") }}
+{% endif %}

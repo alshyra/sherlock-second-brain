@@ -1,4 +1,4 @@
-"""Tests for case storage CRUD, schema validation and atomicity."""
+"""Tests for the filesystem adapter: persistence primitives, schema, safety."""
 
 from __future__ import annotations
 
@@ -9,36 +9,57 @@ import pytest
 
 from sherlock_second_brain.adapters.filesystem import SCHEMA_PATH, Storage
 from sherlock_second_brain.domain.errors import CaseNotFoundError, CaseValidationError
+from sherlock_second_brain.domain.models.case import Case
 from sherlock_second_brain.domain.text import slugify
 
 
-def test_create_case_minimal(storage: Storage) -> None:
-    case = storage.create_case(title="Debug Traefik", goal="Understand the renewal failure")
-    assert case.id.startswith("case-")
-    assert case.status == "open"
-    assert case.tags == []
-    assert case.created_at == case.updated_at
+def _new_case(storage: Storage) -> Case:
+    return Case.create_case(
+        storage.next_case_id(),
+        title="Debug Traefik",
+        goal="Understand the renewal failure",
+    )
+
+
+def test_save_case_persists_round_trip(storage: Storage) -> None:
+    case = _new_case(storage)
+    storage.save_case(case)
+    loaded = storage.get_case(case.id)
+    assert loaded.model_dump() == case.model_dump()
 
 
 def test_case_id_increments_per_day(storage: Storage) -> None:
-    c1 = storage.create_case(title="a", goal="g")
-    c2 = storage.create_case(title="b", goal="g")
-    assert c1.id.endswith("001")
-    assert c2.id.endswith("002")
-    assert c1.id != c2.id
+    first = _new_case(storage)
+    storage.save_case(first)
+    second = _new_case(storage)
+    storage.save_case(second)
+    assert first.id.endswith("001")
+    assert second.id.endswith("002")
 
 
-def test_schema_validation_rejects_invalid(storage: Storage) -> None:
+def test_save_case_rejects_schema_violation(storage: Storage) -> None:
+    case = Case(
+        id=storage.next_case_id(),
+        title="",
+        status="open",
+        goal="g",
+        context="",
+        created_at="2026-08-08T00:00:00",
+        updated_at="2026-08-08T00:00:00",
+    )
     with pytest.raises(CaseValidationError):
-        storage.create_case(title="   ", goal="g")
+        storage.save_case(case)
 
 
 def test_written_case_matches_json_schema(storage: Storage) -> None:
-    case = storage.create_case(title="Migration plan", goal="Migrate to S3", tags=["s3"])
-    storage.add_evidence(case.id, "log line 1", "evidence of the cause")
-    updated = storage.get_case(case.id)
-    updated.findings.append("cause identified")
-    storage.update_case(updated)
+    case = Case.create_case(
+        storage.next_case_id(), title="Plan migration", goal="Migrer vers S3", tags=["s3"]
+    )
+    storage.save_case(case)
+    rel = storage.write_evidence(case.id, "proof.log", "log line 1")
+    case.add_evidence("proof of cause", rel)
+    case.add_finding("cause identified")
+    storage.save_case(case)
 
     schema = json.loads(SCHEMA_PATH.read_text())
     raw = json.loads(storage.case_abs_path(case.id).read_text())
@@ -50,30 +71,17 @@ def test_get_missing_raises(storage: Storage) -> None:
         storage.get_case("case-2020-01-01-999")
 
 
-def test_update_requires_existing(storage: Storage) -> None:
-    from sherlock_second_brain.domain.models.case import Case
-
-    now = "2026-08-07T00:00:00"
-    bogus = Case(id="case-2026-08-07-999", title="t", status="open", goal="g", context="", created_at=now, updated_at=now)
-    with pytest.raises(CaseNotFoundError):
-        storage.update_case(bogus)
-
-
-def test_list_cases_filters(storage: Storage) -> None:
-    a = storage.create_case(title="a", goal="g", tags=["traefik"])
-    b = storage.create_case(title="b", goal="g", tags=["nas"])
-    resolved = storage.get_case(b.id)
-    resolved.status = "resolved"
-    storage.update_case(resolved)
-
-    all_cases = storage.list_cases()
-    assert {c.id for c in all_cases} == {a.id, b.id}
-    assert [c.id for c in storage.list_cases(status="resolved")] == [b.id]
-    assert [c.id for c in storage.list_cases(tag="traefik")] == [a.id]
+def test_list_cases_is_raw(storage: Storage) -> None:
+    a = _new_case(storage)
+    b = _new_case(storage)
+    storage.save_case(a)
+    storage.save_case(b)
+    assert {c.id for c in storage.list_cases()} == {a.id, b.id}
 
 
 def test_delete_case(storage: Storage) -> None:
-    case = storage.create_case(title="a", goal="g")
+    case = _new_case(storage)
+    storage.save_case(case)
     storage.delete_case(case.id)
     with pytest.raises(CaseNotFoundError):
         storage.get_case(case.id)
@@ -84,19 +92,19 @@ def test_delete_case_rejects_malformed_id(storage: Storage) -> None:
         storage.delete_case("../etc")
 
 
-def test_evidence_persists_to_disk(storage: Storage) -> None:
-    case = storage.create_case(title="a", goal="g")
-    updated = storage.add_evidence(case.id, "ERROR 500", "server error", filename="err.log")
-    assert len(updated.evidence) == 1
-    ev_file = storage.cases_dir / case.id / "evidence" / "err.log"
-    assert ev_file.read_text() == "ERROR 500"
-    assert updated.evidence[0].path == "evidence/err.log"
+def test_write_evidence_persists_file(storage: Storage) -> None:
+    case = _new_case(storage)
+    storage.save_case(case)
+    rel = storage.write_evidence(case.id, "err.log", "ERROR 500")
+    assert rel == "evidence/err.log"
+    assert (storage.cases_dir / case.id / "evidence" / "err.log").read_text() == "ERROR 500"
 
 
-def test_evidence_filename_ignores_parent_dirs(storage: Storage) -> None:
-    case = storage.create_case(title="a", goal="g")
-    updated = storage.add_evidence(case.id, "x", "summary", filename="../../evil.txt")
-    assert updated.evidence[0].path == "evidence/evil.txt"
+def test_write_evidence_ignores_parent_dirs(storage: Storage) -> None:
+    case = _new_case(storage)
+    storage.save_case(case)
+    rel = storage.write_evidence(case.id, "../../evil.txt", "x")
+    assert rel == "evidence/evil.txt"
     assert not (storage.root / "evil.txt").exists()
     assert (storage.cases_dir / case.id / "evidence" / "evil.txt").exists()
 

@@ -1,10 +1,11 @@
-"""Filesystem adapter: persistence of cases, fiches and skills.
+"""Filesystem adapter: persistence of cases, fiches, skills and memories.
 
 Layout::
 
     <data_dir>/
       cases/<case-id>/case.json
       cases/<case-id>/evidence/<file>
+      memories/<id>.md
       fiches/<slug>.md
       skills/<slug>/SKILL.md
       vector/            # chromadb persistent dir (gitignored)
@@ -18,23 +19,25 @@ import re
 import shutil
 import tempfile
 import threading
-import uuid
 from pathlib import Path
 
 import jsonschema
 from pydantic import ValidationError
 
+from sherlock_second_brain.adapters.frontmatter import parse_memory, render_memory
+from sherlock_second_brain.application.ports import KbDoc
 from sherlock_second_brain.domain.errors import (
     CaseNotFoundError,
     CaseValidationError,
+    MemoryNotFoundError,
+    MemoryValidationError,
     StorageError,
 )
 from sherlock_second_brain.domain.models.case import Case
-from sherlock_second_brain.domain.models.evidence import Evidence
-from sherlock_second_brain.domain.text import CASE_ID_PATTERN, now_iso, slugify
+from sherlock_second_brain.domain.models.memory import Memory
+from sherlock_second_brain.domain.text import CASE_ID_PATTERN, MEMORY_ID_PATTERN, now_iso
 
 _SCHEMA_NAME = "case.schema.json"
-VALID_STATUS = {"open", "in_progress", "resolved", "abandoned"}
 _LOCK = threading.RLock()
 
 
@@ -76,6 +79,7 @@ class Storage:
     def __init__(self, data_dir: str | Path) -> None:
         self.root = Path(data_dir).resolve()
         self.cases_dir = self.root / "cases"
+        self.memories_dir = self.root / "memories"
         self.fiches_dir = self.root / "fiches"
         self.skills_dir = self.root / "skills"
         self.vector_dir = self.root / "vector"
@@ -87,6 +91,11 @@ class Storage:
     def _require_valid_case_id(case_id: str) -> None:
         if not re.fullmatch(CASE_ID_PATTERN, case_id):
             raise CaseNotFoundError(case_id)
+
+    @staticmethod
+    def _require_valid_memory_id(memory_id: str) -> None:
+        if not re.fullmatch(MEMORY_ID_PATTERN, memory_id):
+            raise MemoryNotFoundError(memory_id)
 
     # ── Cases ───────────────────────────────────────────────────
 
@@ -117,32 +126,10 @@ class Storage:
         except jsonschema.ValidationError as exc:
             raise CaseValidationError(exc.message) from exc
 
-    def create_case(
-        self,
-        title: str,
-        goal: str,
-        context: str = "",
-        tags: list[str] | None = None,
-        references: list[str] | None = None,
-    ) -> Case:
-        if not title.strip():
-            raise CaseValidationError("title is required")
+    def save_case(self, case: Case) -> None:
+        """Persist a case (create or update) as ``cases/<id>/case.json``."""
         with _LOCK:
-            case_id = self.next_case_id()
-            now = now_iso()
-            case = Case(
-                id=case_id,
-                title=title.strip(),
-                status="open",
-                goal=goal.strip(),
-                context=context.strip(),
-                tags=tags or [],
-                references=references or [],
-                created_at=now,
-                updated_at=now,
-            )
             self._save_case(case)
-            return case
 
     def next_case_id(self) -> str:
         """Return the next ``case-YYYY-MM-DD-NNN`` id (per-day counter)."""
@@ -162,7 +149,7 @@ class Storage:
         with _LOCK:
             return self._load_case(case_id)
 
-    def list_cases(self, status: str | None = None, tag: str | None = None) -> list[Case]:
+    def list_cases(self) -> list[Case]:
         with _LOCK:
             if not self.cases_dir.exists():
                 return []
@@ -174,22 +161,10 @@ class Storage:
                 if not case_path.exists():
                     continue
                 try:
-                    case = Case.model_validate(json.loads(case_path.read_text(encoding="utf-8")))
+                    cases.append(Case.model_validate(json.loads(case_path.read_text(encoding="utf-8"))))
                 except (json.JSONDecodeError, ValidationError):
                     continue
-                if status and case.status != status:
-                    continue
-                if tag and tag not in case.tags:
-                    continue
-                cases.append(case)
             return cases
-
-    def update_case(self, case: Case) -> Case:
-        with _LOCK:
-            self._load_case(case.id)  # ensure exists
-            case.touch()
-            self._save_case(case)
-            return case
 
     def delete_case(self, case_id: str) -> None:
         with _LOCK:
@@ -199,31 +174,81 @@ class Storage:
                 raise CaseNotFoundError(case_id)
             shutil.rmtree(path)
 
-    def add_evidence(
-        self, case_id: str, content: str, summary: str, filename: str | None = None
-    ) -> Case:
+    def write_evidence(self, case_id: str, filename: str, content: str) -> str:
+        """Write an evidence file and return its relative path (``evidence/<name>``)."""
         with _LOCK:
-            case = self._load_case(case_id)
+            self._require_valid_case_id(case_id)
             ev_dir = self.cases_dir / case_id / "evidence"
             ev_dir.mkdir(parents=True, exist_ok=True)
-            fname = filename or f"{slugify(summary)}-{uuid.uuid4().hex[:6]}.txt"
-            path = ev_dir / Path(fname).name  # ignore tout chemin parent
+            path = ev_dir / Path(filename).name  # strip any parent directory
             _atomic_write(path, content)
-            rel = f"evidence/{path.name}"
-            case.evidence = [
-                *case.evidence,
-                Evidence(path=rel, type="file", summary=summary),
-            ]
-            case.touch()
-            self._save_case(case)
-            return case
+            return f"evidence/{path.name}"
+
+    # ── Memories ────────────────────────────────────────────────
+
+    @staticmethod
+    def _memory_path(memory_id: str) -> Path:
+        return Path("memories") / f"{memory_id}.md"
+
+    def memory_abs_path(self, memory_id: str) -> Path:
+        self._require_valid_memory_id(memory_id)
+        return self.memories_dir / f"{memory_id}.md"
+
+    def _load_memory(self, memory_id: str) -> Memory:
+        path = self.memory_abs_path(memory_id)
+        if not path.exists():
+            raise MemoryNotFoundError(memory_id)
+        return parse_memory(path.read_text(encoding="utf-8"), id_from_filename=memory_id)
+
+    def save_memory(self, memory: Memory) -> None:
+        """Persist a memory (create or update) as ``memories/<id>.md``."""
+        with _LOCK:
+            _atomic_write(self.memory_abs_path(memory.id), render_memory(memory))
+
+    def next_memory_id(self) -> str:
+        """Return the next ``mem-YYYY-MM-DD-NNN`` id (per-day counter)."""
+        day = now_iso()[:10]
+        prefix = f"mem-{day}-"
+        if not self.memories_dir.exists():
+            return f"{prefix}001"
+        existing = [
+            p.stem
+            for p in self.memories_dir.glob("*.md")
+            if p.stem.startswith(prefix)
+        ]
+        max_n = max((int(n) for n in (name[len(prefix):] for name in existing) if n.isdigit()), default=0)
+        return f"{prefix}{max_n + 1:03d}"
+
+    def get_memory(self, memory_id: str) -> Memory:
+        with _LOCK:
+            return self._load_memory(memory_id)
+
+    def list_memories(self) -> list[Memory]:
+        with _LOCK:
+            if not self.memories_dir.exists():
+                return []
+            memories: list[Memory] = []
+            for path in sorted(self.memories_dir.glob("*.md")):
+                try:
+                    memories.append(parse_memory(path.read_text(encoding="utf-8"), id_from_filename=path.stem))
+                except MemoryValidationError:
+                    continue
+            return memories
+
+    def delete_memory(self, memory_id: str) -> None:
+        with _LOCK:
+            self._require_valid_memory_id(memory_id)
+            path = self.memory_abs_path(memory_id)
+            if not path.exists():
+                raise MemoryNotFoundError(memory_id)
+            path.unlink()
 
     # ── Fiches (KB) ─────────────────────────────────────────────
 
-    def write_fiche(self, slug: str, content: str) -> Path:
+    def write_fiche(self, slug: str, content: str) -> str:
         path = self.fiches_dir / f"{slug}.md"
         _atomic_write(path, content)
-        return path
+        return str(path)
 
     def read_fiche(self, slug: str) -> str:
         path = self.fiches_dir / f"{slug}.md"
@@ -231,10 +256,13 @@ class Storage:
             raise StorageError(f"fiche not found: {slug}")
         return path.read_text(encoding="utf-8")
 
-    def list_fiches(self) -> list[Path]:
+    def list_fiches(self) -> list[KbDoc]:
         if not self.fiches_dir.exists():
             return []
-        return sorted(self.fiches_dir.glob("*.md"))
+        return [
+            KbDoc(slug=p.stem, content=p.read_text(encoding="utf-8"))
+            for p in sorted(self.fiches_dir.glob("*.md"))
+        ]
 
     def delete_fiche(self, slug: str) -> None:
         path = self.fiches_dir / f"{slug}.md"
@@ -244,10 +272,10 @@ class Storage:
 
     # ── Skills (KB) ─────────────────────────────────────────────
 
-    def write_skill(self, slug: str, content: str) -> Path:
+    def write_skill(self, slug: str, content: str) -> str:
         path = self.skills_dir / slug / "SKILL.md"
         _atomic_write(path, content)
-        return path
+        return str(path)
 
     def read_skill(self, slug: str) -> str:
         path = self.skills_dir / slug / "SKILL.md"
@@ -255,10 +283,13 @@ class Storage:
             raise StorageError(f"skill not found: {slug}")
         return path.read_text(encoding="utf-8")
 
-    def list_skills(self) -> list[Path]:
+    def list_skills(self) -> list[KbDoc]:
         if not self.skills_dir.exists():
             return []
-        return sorted(p / "SKILL.md" for p in self.skills_dir.iterdir() if (p / "SKILL.md").exists())
+        return [
+            KbDoc(slug=p.parent.name, content=p.read_text(encoding="utf-8"))
+            for p in sorted(self.skills_dir.glob("*/SKILL.md"))
+        ]
 
     def delete_skill(self, slug: str) -> None:
         path = self.skills_dir / slug

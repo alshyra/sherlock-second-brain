@@ -7,16 +7,19 @@ in ``adapters/templates/``, loaded once.
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 
 from jinja2 import Environment, PackageLoader
 
-from sherlock_second_brain.application.ports import CaseRepository, FicheRepository, SkillRepository
+from sherlock_second_brain.application.ports import (
+    CaseRepository,
+    FicheRepository,
+    MemoryRepository,
+    SkillRepository,
+)
 from sherlock_second_brain.domain.models.case import Case
-from sherlock_second_brain.domain.models.promotion import Promotion
+from sherlock_second_brain.domain.models.memory import Memory
 from sherlock_second_brain.domain.text import slugify
-
-VALID_PROMOTION_TARGETS = {"fiche", "skill"}
 
 
 def _linkify(text: str) -> str:
@@ -43,10 +46,12 @@ class PromotionService:
         cases: CaseRepository,
         fiches: FicheRepository,
         skills: SkillRepository,
+        memories: MemoryRepository,
     ) -> None:
         self._cases = cases
         self._fiches = fiches
         self._skills = skills
+        self._memories = memories
         self._env = Environment(
             loader=PackageLoader("sherlock_second_brain.adapters", "templates"),
             autoescape=False,
@@ -58,6 +63,7 @@ class PromotionService:
         self._env.filters["backtick"] = lambda tag: f"`{tag}`"
         self._fiche_template = self._env.get_template("fiche.md.j2")
         self._skill_template = self._env.get_template("skill.md.j2")
+        self._memory_fiche_template = self._env.get_template("memory_fiche.md.j2")
 
     def fiche_content(self, case: Case) -> str:
         """Render a validated fiche (MD) from a resolved case."""
@@ -68,19 +74,14 @@ class PromotionService:
         return self._skill_template.render(case=case)
 
     def promote(self, case: Case, target: str) -> dict[str, str]:
-        """Promote a resolved case into a fiche or a skill. Returns metadata."""
-        if target not in VALID_PROMOTION_TARGETS:
-            raise ValueError(f"invalid promotion target: {target!r} (expected fiche|skill)")
-        if case.status != "resolved":
-            raise ValueError(f"cannot promote a case in status {case.status!r} — mark it resolved first")
+        """Promote a resolved case into a fiche or a skill. Returns metadata.
 
+        The promotion rule (valid target, resolved status, one-shot) is
+        enforced by ``Case.promote``; this service only renders and persists.
+        """
         slug = _linkify(case.title)
         rel = f"fiches/{slug}.md" if target == "fiche" else f"skills/{slug}/SKILL.md"
-        case.promotion = Promotion(
-            target=target,
-            path=rel,
-            date=datetime.now(UTC).isoformat(timespec="seconds"),
-        )
+        case.promote(target, rel)
 
         if target == "fiche":
             content = self.fiche_content(case)
@@ -89,6 +90,18 @@ class PromotionService:
             content = self.skill_content(case)
             self._skills.write_skill(slug, content)
 
-        case.touch()
-        self._cases.update_case(case)
+        self._cases.save_case(case)
         return {"target": target, "path": rel, "slug": slug, "content": content}
+
+    def promote_memory(self, memory: Memory) -> dict[str, str]:
+        """Promote a memory into a validated fiche. Returns metadata.
+
+        The one-shot rule is enforced by ``Memory.promote``.
+        """
+        slug = _linkify(memory.summary)
+        rel = f"fiches/{slug}.md"
+        memory.promote(rel)
+        content = self._memory_fiche_template.render(memory=memory)
+        self._fiches.write_fiche(slug, content)
+        self._memories.save_memory(memory)
+        return {"target": "fiche", "path": rel, "slug": slug, "content": content}
