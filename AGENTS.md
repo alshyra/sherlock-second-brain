@@ -39,8 +39,16 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
   against it (`SCHEMA_PATH` resolved by walking up to the repo root). If you touch the schema,
   keep writes compatible or `test_written_case_matches_json_schema` fails.
 - Vector index falls back to lexical matching when chromadb is missing; doc IDs are
-  `fiche:<slug>`, `case:<id>`, `skill:<slug>`.
+  `fiche:<slug>`, `case:<id>`, `skill:<slug>`. `chroma.py` (VectorIndex) est un module
+  optionnel : `server.py` le sélectionne via un `try/except` d'import, sinon `lexical.py`
+  (`LexicalIndex`). L'énumération des documents est partagée dans `adapters/documents.py`.
 - `CaseService` maintains the index on every mutation (update/evidence/status/delete).
+
+## Conventions de code
+
+- **Pas de lazy import** : les dépendances optionnelles (chromadb/[vector]) se gèrent à la
+  composition root (`server.py`) par `try/except` d'import en haut de module — jamais par
+  `import` paresseux dans le corps des fonctions.
 
 ## Domain workflow (matches `agent/second-brain.md`)
 
