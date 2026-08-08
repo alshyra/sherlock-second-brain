@@ -317,7 +317,7 @@ def fiche_list() -> list[str]:
     Args:
         None.
     """
-    return [p.stem for p in _storage.list_fiches()]
+    return [doc.slug for doc in _storage.list_fiches()]
 
 
 @mcp.tool()
@@ -346,7 +346,7 @@ def fiche_write(slug: str, content: str) -> str:
     """
     path = _storage.write_fiche(slug, content)
     _index.upsert_single(f"fiche:{slug}", content, {"kind": "fiche", "slug": slug})
-    return str(path)
+    return path
 
 
 @mcp.tool()
@@ -375,7 +375,7 @@ def skill_list() -> list[str]:
     Args:
         None.
     """
-    return [p.parent.name for p in _storage.list_skills()]
+    return [doc.slug for doc in _storage.list_skills()]
 
 
 @mcp.tool()
@@ -404,7 +404,7 @@ def skill_write(slug: str, content: str) -> str:
     """
     path = _storage.write_skill(slug, content)
     _index.upsert_single(f"skill:{slug}", content, {"kind": "skill", "slug": slug})
-    return str(path)
+    return path
 
 
 @mcp.tool()

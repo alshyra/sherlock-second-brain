@@ -6,11 +6,23 @@ adapters — to stay testable and storage-agnostic.
 
 from __future__ import annotations
 
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from sherlock_second_brain.domain.models.case import Case
 from sherlock_second_brain.domain.models.memory import Memory
+
+
+@dataclass(frozen=True)
+class KbDoc:
+    """A validated KB document (fiche or skill) read through a port.
+
+    Storage-agnostic replacement for ``Path`` in the KB repositories: a remote
+    backend returns slug + content, not local file paths.
+    """
+
+    slug: str
+    content: str
 
 
 class CaseRepository(Protocol):
@@ -28,21 +40,21 @@ class CaseRepository(Protocol):
 
 
 class FicheRepository(Protocol):
-    def write_fiche(self, slug: str, content: str) -> Path: ...
+    def write_fiche(self, slug: str, content: str) -> str: ...
 
     def read_fiche(self, slug: str) -> str: ...
 
-    def list_fiches(self) -> list[Path]: ...
+    def list_fiches(self) -> list[KbDoc]: ...
 
     def delete_fiche(self, slug: str) -> None: ...
 
 
 class SkillRepository(Protocol):
-    def write_skill(self, slug: str, content: str) -> Path: ...
+    def write_skill(self, slug: str, content: str) -> str: ...
 
     def read_skill(self, slug: str) -> str: ...
 
-    def list_skills(self) -> list[Path]: ...
+    def list_skills(self) -> list[KbDoc]: ...
 
     def delete_skill(self, slug: str) -> None: ...
 
@@ -62,11 +74,11 @@ class MemoryRepository(Protocol):
 class DocumentSource(Protocol):
     """Document sources for the index (fiches, cases, skills, memories)."""
 
-    def list_fiches(self) -> list[Path]: ...
+    def list_fiches(self) -> list[KbDoc]: ...
 
     def list_cases(self) -> list[Case]: ...
 
-    def list_skills(self) -> list[Path]: ...
+    def list_skills(self) -> list[KbDoc]: ...
 
     def list_memories(self) -> list[Memory]: ...
 

@@ -25,6 +25,7 @@ import jsonschema
 from pydantic import ValidationError
 
 from sherlock_second_brain.adapters.frontmatter import parse_memory, render_memory
+from sherlock_second_brain.application.ports import KbDoc
 from sherlock_second_brain.domain.errors import (
     CaseNotFoundError,
     CaseValidationError,
@@ -244,10 +245,10 @@ class Storage:
 
     # ── Fiches (KB) ─────────────────────────────────────────────
 
-    def write_fiche(self, slug: str, content: str) -> Path:
+    def write_fiche(self, slug: str, content: str) -> str:
         path = self.fiches_dir / f"{slug}.md"
         _atomic_write(path, content)
-        return path
+        return str(path)
 
     def read_fiche(self, slug: str) -> str:
         path = self.fiches_dir / f"{slug}.md"
@@ -255,10 +256,13 @@ class Storage:
             raise StorageError(f"fiche not found: {slug}")
         return path.read_text(encoding="utf-8")
 
-    def list_fiches(self) -> list[Path]:
+    def list_fiches(self) -> list[KbDoc]:
         if not self.fiches_dir.exists():
             return []
-        return sorted(self.fiches_dir.glob("*.md"))
+        return [
+            KbDoc(slug=p.stem, content=p.read_text(encoding="utf-8"))
+            for p in sorted(self.fiches_dir.glob("*.md"))
+        ]
 
     def delete_fiche(self, slug: str) -> None:
         path = self.fiches_dir / f"{slug}.md"
@@ -268,10 +272,10 @@ class Storage:
 
     # ── Skills (KB) ─────────────────────────────────────────────
 
-    def write_skill(self, slug: str, content: str) -> Path:
+    def write_skill(self, slug: str, content: str) -> str:
         path = self.skills_dir / slug / "SKILL.md"
         _atomic_write(path, content)
-        return path
+        return str(path)
 
     def read_skill(self, slug: str) -> str:
         path = self.skills_dir / slug / "SKILL.md"
@@ -279,10 +283,13 @@ class Storage:
             raise StorageError(f"skill not found: {slug}")
         return path.read_text(encoding="utf-8")
 
-    def list_skills(self) -> list[Path]:
+    def list_skills(self) -> list[KbDoc]:
         if not self.skills_dir.exists():
             return []
-        return sorted(p / "SKILL.md" for p in self.skills_dir.iterdir() if (p / "SKILL.md").exists())
+        return [
+            KbDoc(slug=p.parent.name, content=p.read_text(encoding="utf-8"))
+            for p in sorted(self.skills_dir.glob("*/SKILL.md"))
+        ]
 
     def delete_skill(self, slug: str) -> None:
         path = self.skills_dir / slug
