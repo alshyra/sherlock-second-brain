@@ -1,7 +1,7 @@
 [project]
 name = "sherlock-second-brain"
 version = "0.1.0"
-description = "Sherlock's second brain : MCP server où chaque case est un dossier d'enquête, promu en fiche ou skill validé une fois résolu (avec index vectoriel local)."
+description = "Sherlock's second brain: an MCP server where every case is an investigation file (debug / troubleshooting), promoted into a validated fiche or skill once resolved, with a local vector index."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=2.0.0",

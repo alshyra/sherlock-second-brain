@@ -3,7 +3,8 @@
 Sherlock's second brain MCP server: validated knowledge lives in `fiches/` and `skills/`;
 everything unvalidated lives in `cases/` (JSON investigations — dossiers d'enquête pour le
 debug et l'analyse). A `resolved` case is promoted into a fiche or skill via the MCP.
-Repo language is **French** (README, docstrings, generated output).
+Repo language is **French** (docstrings, generated output) — the `README.md` is in English
+because it is parsed by Glama (https://glama.ai).
 
 ## Commands
 

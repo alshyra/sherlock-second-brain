@@ -1,21 +1,21 @@
 # sherlock-second-brain
 
-> Le célèbre enquêteur de Baker Street qui a inspiré ce projet : à sa manière,
-> on mène des enquêtes rigoureuses (symptômes, indices, hypothèses, preuves,
-> conclusion) pour **debugger**, analyser du code et **mémoriser** ce qu'on
-> apprend à travers plusieurs projets.
+> Named after the famous detective of Baker Street who inspired this project: the
+> same way, we run rigorous investigations (symptoms, clues, hypotheses, evidence,
+> conclusion) to **debug**, analyze code, and **remember** what we learn across
+> multiple projects.
 
-MCP server + skill pour le **second cerveau de Sherlock** : la connaissance validée
-vit dans des fiches MD et des skills, tout ce qui n'est **pas encore validé** vit
-dans des **cases** (dossiers d'enquête JSON pour le debug et l'investigation).
-Un case résolu se promeut en fiche ou en skill via le MCP.
+MCP server + skill for **Sherlock's second brain**: validated knowledge lives in MD
+fiches and skills; everything **not yet validated** lives in **cases** (JSON
+investigation files for debugging and troubleshooting). A resolved case is promoted
+into a fiche or a skill through the MCP.
 
 ```
-source de vérité (fichiers)                      index dérivé (regénérable)
+source of truth (files)                      derived index (rebuildable)
 ────────────────────────────────────             ────────────────────────────
 <data_dir>/
-  cases/<case-id>/case.json          ──→   vector/ (chromadb, gitignoré)
-  cases/<case-id>/evidence/*.log           recherche hybride : vectoriel (Chroma)
+  cases/<case-id>/case.json          ──→   vector/ (chromadb, gitignored)
+  cases/<case-id>/evidence/*.log           hybrid search: vector (Chroma)
   fiches/*.md                                + lexical (RRF)
   skills/<slug>/SKILL.md
 ```
@@ -24,19 +24,19 @@ source de vérité (fichiers)                      index dérivé (regénérable
 
 - Python 3.12+, `uv`
 - [FastMCP](https://github.com/jlowin/fastmcp) (stdio)
-- ChromaDB + fastembed (index vectoriel, modèle multilingue MiniLM-L12)
-- jsonschema (validation des cases)
-- jinja2 (rendu des fiches / skills promues)
-- Architecture hexagonale : `domain/` (pydantic pur) · `application/` (cas d'usage + ports) · `adapters/` (filesystem, chroma, lexical, hybride RRF, DTO MCP, templates)
+- ChromaDB + fastembed (vector index, multilingual MiniLM-L12 model)
+- jsonschema (case validation)
+- jinja2 (rendering of promoted fiches / skills)
+- Hexagonal architecture: `domain/` (pure pydantic) · `application/` (use cases + ports) · `adapters/` (filesystem, chroma, lexical, hybrid RRF, MCP DTO, templates)
 
-## Installation (dans un projet)
+## Installation (in a project)
 
 ```bash
 uv init
 uv add sherlock-second-brain
 ```
 
-Ou depuis le repo :
+Or from the repo:
 
 ```bash
 cd sherlock-second-brain
@@ -45,13 +45,13 @@ uv sync
 
 ## Configuration
 
-| Variable | Rôle | Défaut |
-|----------|------|--------|
-| `SHERLOCK_BRAIN_DATA_DIR` | Dossier racine des données (cases + kb + vector) | `~/sherlock-second-brain-data` |
+| Variable | Role | Default |
+|----------|------|---------|
+| `SHERLOCK_BRAIN_DATA_DIR` | Root data directory (cases + kb + vector) | `~/sherlock-second-brain-data` |
 
-## Câbler le serveur MCP dans opencode
+## Wire the MCP server into opencode
 
-Ajouter à `~/.config/opencode/opencode.json` :
+Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -68,52 +68,52 @@ Ajouter à `~/.config/opencode/opencode.json` :
 }
 ```
 
-## Installer l'agent globalement
+## Install the agent globally
 
-L'agent est versionné dans ce repo (`agent/sherlock-second-brain.md`). Pour le rendre
-disponible à tous les agents opencode :
+The agent is versioned in this repo (`agent/sherlock-second-brain.md`). To make it
+available to all opencode agents:
 
 ```bash
 ln -s /opt/sherlock-second-brain/agent/sherlock-second-brain.md ~/.config/opencode/agent/sherlock-second-brain.md
 ```
 
-> Sur une autre machine, cloner le repo puis créer le même lien pointant vers le checkout.
-> Redémarrer opencode après l'installation.
+> On another machine, clone the repo then create the same symlink pointing to the checkout.
+> Restart opencode after installation.
 
-## Outils MCP
+## MCP tools
 
 ### Cases
-| Outil | Rôle |
-|-------|------|
-| `case_create` | Créer une investigation (sujet non validé) |
-| `case_get` / `case_list` | Lire / lister (filtres status, tag) |
-| `case_search` | Recherche sémantique (cases + KB) |
-| `case_update` | Ajouter findings / steps / hypothèses / conclusion / résultat d'hypothèse |
-| `case_add_evidence` | Attacher une preuve (log, sortie, note) |
+| Tool | Role |
+|------|------|
+| `case_create` | Create an investigation (unvalidated topic) |
+| `case_get` / `case_list` | Read / list (status, tag filters) |
+| `case_search` | Semantic search (cases + KB) |
+| `case_update` | Add findings / steps / hypotheses / conclusion / hypothesis result |
+| `case_add_evidence` | Attach evidence (log, output, note) |
 | `case_set_status` | open / in_progress / resolved / abandoned |
-| `case_delete` | Supprimer un case et ses preuves |
-| `case_promote` | Promouvoir un case résolu → fiche ou skill |
+| `case_delete` | Delete a case and its evidence |
+| `case_promote` | Promote a resolved case → fiche or skill |
 
 ### KB
-| Outil | Rôle |
-|-------|------|
-| `fiche_list` / `fiche_read` / `fiche_write` / `fiche_delete` | CRUD des fiches validées |
-| `skill_list` / `skill_read` / `skill_write` / `skill_delete` | CRUD des skills validés |
-| `index_rebuild` | Reconstruire l'index vectoriel depuis les fichiers |
+| Tool | Role |
+|------|------|
+| `fiche_list` / `fiche_read` / `fiche_write` / `fiche_delete` | CRUD validated fiches |
+| `skill_list` / `skill_read` / `skill_write` / `skill_delete` | CRUD validated skills |
+| `index_rebuild` | Rebuild the vector index from source files |
 
-## Recherche hybride
+## Hybrid search
 
-`case_search` combine deux moteurs via **Reciprocal Rank Fusion** (`adapters/hybrid.py`) :
+`case_search` combines two engines via **Reciprocal Rank Fusion** (`adapters/hybrid.py`):
 
-- **Vectoriel** (`adapters/chroma.py`) : embeddings **multilingues** (MiniLM-L12, ~0.22GB, français inclus), collection persistante dans `vector/`, régénérable via `index_rebuild`.
-- **Lexical** (`adapters/lexical.py`) : chevauchement de tokens, zéro dépendance — un doc pertinent pour un terme exact mais raté par le vectoriel remonte quand même.
+- **Vector** (`adapters/chroma.py`): **multilingual** embeddings (MiniLM-L12, ~0.22GB, French included), persistent collection in `vector/`, rebuildable via `index_rebuild`.
+- **Lexical** (`adapters/lexical.py`): token overlap, zero dependency — a doc relevant for an exact term but missed by the vector engine still surfaces.
 
-Fusion RRF : `score(d) = 1/(k + rang_vector) + 1/(k + rang_lexical)`, `k = 60`. Le premier `index_rebuild` télécharge le modèle.
+RRF fusion: `score(d) = 1/(k + vector_rank) + 1/(k + lexical_rank)`, `k = 60`. The first `index_rebuild` downloads the model.
 
-## Schéma des cases
+## Case schema
 
-Défini dans [`schema/case.schema.json`](schema/case.schema.json) — source de vérité.
-Tout case écrit via le MCP est validé contre ce schéma.
+Defined in [`schema/case.schema.json`](schema/case.schema.json) — source of truth.
+Every case written through the MCP is validated against this schema.
 
 ## Tests
 
