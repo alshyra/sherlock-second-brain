@@ -1,1 +1,1 @@
-"""Domaine : modèles pydantic purs, erreurs et utilitaires (aucun I/O)."""
+"""Domain: pure pydantic models, errors and utilities (no I/O)."""

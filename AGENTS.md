@@ -1,10 +1,11 @@
 # AGENTS.md
 
 Sherlock's second brain MCP server: validated knowledge lives in `fiches/` and `skills/`;
-everything unvalidated lives in `cases/` (JSON investigations — dossiers d'enquête pour le
-debug et l'analyse). A `resolved` case is promoted into a fiche or skill via the MCP.
-Repo language is **French** (docstrings, generated output) — the `README.md` is in English
-because it is parsed by Glama (https://glama.ai).
+everything unvalidated lives in `cases/` (JSON investigations — investigation files for
+debugging and analysis). A `resolved` case is promoted into a fiche or skill via the MCP.
+Repo language is **English** (code, docs, generated output) — the `README.md` is in English
+because it is parsed by Glama (https://glama.ai). Some tests keep French content
+(`tests/test_vector.py`, `test_slugify`) to exercise multilingual support.
 
 ## Commands
 
@@ -49,11 +50,11 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
   `skill:<slug>`. Document enumeration is shared in `adapters/documents.py`.
 - `CaseService` maintains the index on every mutation (update/evidence/status/delete).
 
-## Conventions de code
+## Code conventions
 
-- **Pas de lazy import** : les imports se font en haut de module, jamais dans le corps des
-  fonctions. Les dépendances optionnelles (aucune aujourd'hui : chromadb+fastembed sont
-  obligatoires) se géreraient à la composition root par `try/except` d'import.
+- **No lazy imports**: imports live at the top of modules, never inside function bodies.
+  Optional dependencies (none today: chromadb+fastembed are mandatory) would be handled
+  at the composition root with a `try/except` import.
 
 ## Domain workflow (matches `agent/sherlock-second-brain.md`)
 

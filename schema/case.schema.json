@@ -22,7 +22,7 @@
     "id": {
       "type": "string",
       "pattern": "^case-\\d{4}-\\d{2}-\\d{2}-\\d{3}$",
-      "description": "Identifiant unique du case."
+      "description": "Unique case id."
     },
     "title": {
       "type": "string",
@@ -34,11 +34,11 @@
     },
     "goal": {
       "type": "string",
-      "description": "Objectif de l'investigation (debug, plan, recherche)."
+      "description": "Investigation goal (debug, plan, research)."
     },
     "context": {
       "type": "string",
-      "description": "Contexte, observations initiales, liens utiles."
+      "description": "Context, initial observations, useful links."
     },
     "hypotheses": {
       "type": "array",
@@ -52,11 +52,11 @@
           },
           "statement": {
             "type": "string",
-            "description": "L'hypothèse, formulée testable."
+            "description": "The hypothesis, stated in a testable way."
           },
           "test": {
             "type": "string",
-            "description": "Comment la tester."
+            "description": "How to test it."
           },
           "result": {
             "type": ["string", "null"],
@@ -66,7 +66,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "description": "Chemin relatif vers une preuve dans evidence/."
+              "description": "Relative path to evidence in evidence/."
             }
           }
         }
@@ -83,18 +83,18 @@
           },
           "action": {
             "type": "string",
-            "description": "Action entreprise."
+            "description": "Action taken."
           },
           "result": {
             "type": ["string", "null"],
-            "description": "Résultat observé."
+            "description": "Observed result."
           },
           "evidence": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Chemins relatifs vers les preuves associées."
+            "description": "Relative paths to the associated evidence."
           }
         }
       }
@@ -104,7 +104,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Constats confirmés au fil de l'investigation."
+      "description": "Findings confirmed during the investigation."
     },
     "evidence": {
       "type": "array",
@@ -114,7 +114,7 @@
         "properties": {
           "path": {
             "type": "string",
-            "description": "Chemin relatif (evidence/<fichier>) vers la preuve stockée."
+            "description": "Relative path (evidence/<file>) to the stored evidence."
           },
           "type": {
             "type": "string",
@@ -122,14 +122,14 @@
           },
           "summary": {
             "type": "string",
-            "description": "Résumé de ce que prouve cette pièce."
+            "description": "Summary of what this piece proves."
           }
         }
       }
     },
     "conclusion": {
       "type": ["string", "null"],
-      "description": "Conclusion une fois le case résolu."
+      "description": "Conclusion once the case is resolved."
     },
     "promotion": {
       "type": ["object", "null"],
@@ -141,7 +141,7 @@
         },
         "path": {
           "type": "string",
-          "description": "Chemin relatif du fichier promu dans kb/."
+          "description": "Relative path of the promoted file in the KB."
         },
         "date": {
           "type": "string",
@@ -160,7 +160,7 @@
       "items": {
         "type": "string"
       },
-      "description": "URLs ou refs utiles."
+      "description": "Useful URLs or references."
     },
     "created_at": {
       "type": "string",

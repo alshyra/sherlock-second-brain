@@ -11,91 +11,93 @@ mode: all
 
 # sherlock-second-brain
 
-## Objectif
+## Objective
 
-Le second cerveau de Sherlock stocke de la **connaissance validée** (fiches MD +
-skills dans `fiches/` et `skills/`), et traite tout le reste comme des **cases**
-(dossiers d'enquête transitoires) jusqu'à validation.
+Sherlock's second brain stores **validated knowledge** (MD fiches + skills in
+`fiches/` and `skills/`), and treats everything else as **cases** (transient
+investigation files) until validation.
 
-Ce workflow régit : quand utiliser les cases, comment les creuser, et comment les promouvoir en savoir validé.
+This workflow governs: when to use cases, how to dig into them, and how to promote
+them into validated knowledge.
 
-## Règles fondamentales
+## Golden rules
 
-1. **Chercher avant d'écrire** — toute nouvelle question commence par `case_search` (recherche sémantique) sur la KB.
-2. **Tant que ce n'est pas validé → `case_create`** — jamais d'écriture directe dans `fiches/` et `skills/` pour du savoir non confirmé.
-3. **La promotion est l'acte de validation** — `case_promote` transforme un case `resolved` en fiche ou skill.
-4. **Un case, une investigation** — ne pas mélanger deux problèmes distincts dans un même case.
+1. **Search before writing** — every new question starts with `case_search` (semantic search) on the KB.
+2. **As long as it's not validated → `case_create`** — never write directly into `fiches/` and `skills/` for unconfirmed knowledge.
+3. **Promotion is the validation act** — `case_promote` turns a `resolved` case into a fiche or skill.
+4. **One case, one investigation** — don't mix two distinct problems in the same case.
 
 ## Workflow
 
-### 1. Rechercher d'abord
+### 1. Search first
 
 ```text
-case_search(query="<problème ou sujet>")
+case_search(query="<problem or topic>")
 ```
 
-- Si une fiche/skill validé répond → l'utiliser (voir `fiche_read` / `skill_read`).
-- Sinon → passer à l'étape 2.
+- If a validated fiche/skill answers → use it (see `fiche_read` / `skill_read`).
+- Otherwise → go to step 2.
 
-### 2. Créer un case (sujet non validé)
+### 2. Create a case (unvalidated topic)
 
 ```text
 case_create(
-  title="<titre court>",
-  goal="<objectif de l'investigation>",
-  context="<symptômes, observations, contraintes>",
-  tags="debug,traefik"           # optionnel, séparé par des virgules
+  title="<short title>",
+  goal="<investigation goal>",
+  context="<symptoms, observations, constraints>",
+  tags="debug,traefik"           # optional, comma-separated
 )
 ```
 
-Le case est créé en statut `open` avec un id `case-YYYY-MM-DD-NNN`.
+The case is created with status `open` and an id `case-YYYY-MM-DD-NNN`.
 
-### 3. Creuser le case (debug ou plan)
+### 3. Dig into the case (debug or plan)
 
-- **Ajouter des hypothèses** :
+- **Add hypotheses**:
   ```text
   case_update(case_id=..., fields={"hypothesis_statement": "...", "hypothesis_test": "..."})
   ```
-- **Documenter les actions** :
+- **Document actions**:
   ```text
-  case_update(case_id=..., fields={"step_action": "commande exécutée", "step_result": "résultat observé"})
+  case_update(case_id=..., fields={"step_action": "command run", "step_result": "observed result"})
   ```
-- **Attacher des preuves** (logs, sorties, captures) :
+- **Attach evidence** (logs, outputs, captures):
   ```text
-  case_add_evidence(case_id=..., content="<extrait de log>", summary="<ce que ça prouve>", filename="traefik-error.log")
+  case_add_evidence(case_id=..., content="<log excerpt>", summary="<what it proves>", filename="traefik-error.log")
   ```
-- **Enregistrer les constats confirmés** :
+- **Record confirmed findings**:
   ```text
-  case_update(case_id=..., fields={"finding": "constat validé"})
+  case_update(case_id=..., fields={"finding": "validated finding"})
   ```
-- **Mettre à jour le statut** :
+- **Update the status**:
   ```text
   case_set_status(case_id=..., status="in_progress")
   ```
 
-### 4. Valider et promouvoir
+### 4. Validate and promote
 
-Une fois l'investigation conclue et le résultat **confirmé** :
+Once the investigation is concluded and the result is **confirmed**:
 
 ```text
 case_set_status(case_id=..., status="resolved")
-case_promote(case_id=..., target="fiche")    # connaissance factuelle
-case_promote(case_id=..., target="skill")    # procédure réutilisable
+case_promote(case_id=..., target="fiche")    # factual knowledge
+case_promote(case_id=..., target="skill")    # reusable procedure
 ```
 
-Le MCP génère automatiquement la fiche MD ou le `SKILL.md` depuis le case, l'écrit
-dans `fiches/` et `skills/`, et marque le case comme promu.
+The MCP automatically generates the MD fiche or the `SKILL.md` from the case,
+writes it into `fiches/` and `skills/`, and marks the case as promoted.
 
-> **Abandon** : si l'investigation n'aboutit pas, `case_set_status(status="abandoned")`
-> puis `case_promote(target="fiche")` si les constats valent d'être gardés.
+> **Abandon**: if the investigation does not conclude,
+> `case_set_status(status="abandoned")` then `case_promote(target="fiche")` if
+> the findings are worth keeping.
 
-## Convention de contenu
+## Content conventions
 
-- **Fiche** = connaissance factuelle : constats, conclusion, références, tags.
-- **Skill** = procédure réutilisable : étapes ordonnées, points d'attention, références.
-- Les **preuves** (logs, sorties) restent dans `cases/<id>/evidence/`, référencées par le case — pas dans la fiche.
+- **Fiche** = factual knowledge: findings, conclusion, references, tags.
+- **Skill** = reusable procedure: ordered steps, watch-outs, references.
+- **Evidence** (logs, outputs) stays in `cases/<id>/evidence/`, referenced by the case — not in the fiche.
 
 ## Configuration
 
-- Data dir (VPS) : `/opt/infra/kb` via `SHERLOCK_BRAIN_DATA_DIR`.
-- Fiches : `fiches/*.md` — Skills : `skills/<slug>/SKILL.md`.
+- Data dir (VPS): `/opt/infra/kb` via `SHERLOCK_BRAIN_DATA_DIR`.
+- Fiches: `fiches/*.md` — Skills: `skills/<slug>/SKILL.md`.

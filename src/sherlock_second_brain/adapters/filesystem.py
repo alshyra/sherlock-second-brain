@@ -1,4 +1,4 @@
-"""Adapter filesystem : persistance des cases, fiches et skills.
+"""Filesystem adapter: persistence of cases, fiches and skills.
 
 Layout::
 
@@ -39,9 +39,9 @@ _LOCK = threading.RLock()
 
 
 def _find_schema() -> Path:
-    """Résout ``schema/case.schema.json`` en remontant vers la racine du repo.
+    """Resolves ``schema/case.schema.json`` by walking up to the repo root.
 
-    Robuste quel que soit le point de montage du package (repo ou installé).
+    Robust regardless of how the package is mounted (repo or installed).
     """
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "schema" / _SCHEMA_NAME
@@ -69,8 +69,8 @@ def _atomic_write(path: Path, content: str) -> None:
 class Storage:
     """File-based storage for Sherlock's second brain.
 
-    Implémente ``CaseRepository``, ``FicheRepository``, ``SkillRepository``
-    et ``DocumentSource`` (ports définis dans ``application.ports``).
+    Implements ``CaseRepository``, ``FicheRepository``, ``SkillRepository``
+    and ``DocumentSource`` (ports defined in ``application.ports``).
     """
 
     def __init__(self, data_dir: str | Path) -> None:
@@ -81,7 +81,7 @@ class Storage:
         self.vector_dir = self.root / "vector"
         self.root.mkdir(parents=True, exist_ok=True)
 
-    # ── Helpers de sécurité ──────────────────────────────────────
+    # ── Safety helpers ───────────────────────────────────────────
 
     @staticmethod
     def _require_valid_case_id(case_id: str) -> None:

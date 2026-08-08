@@ -1,4 +1,4 @@
-"""Tests du DTO d'entrée de ``case_update``."""
+"""Tests for the ``case_update`` input DTO."""
 
 from __future__ import annotations
 

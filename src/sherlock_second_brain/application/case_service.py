@@ -1,4 +1,4 @@
-"""Cas d'usage : cycle de vie des investigations (cases)."""
+"""Use case: lifecycle of investigation cases."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from sherlock_second_brain.domain.models.step import Step
 
 
 class CaseService:
-    """Orchestre les opérations sur les cases via leurs ports.
+    """Orchestrates case operations through their ports.
 
-    Ne dépend d'aucun adapter concret : ``CaseRepository`` pour le stockage
-    et ``SearchIndex`` pour maintenir l'index à jour sur chaque mutation.
+    Depends on no concrete adapter: ``CaseRepository`` for storage and
+    ``SearchIndex`` to keep the index up to date on every mutation.
     """
 
     def __init__(self, repository: CaseRepository, index: SearchIndex) -> None:

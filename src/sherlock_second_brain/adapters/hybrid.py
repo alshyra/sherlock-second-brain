@@ -1,9 +1,9 @@
-"""Index hybride : fusion vectoriel + lexical par Reciprocal Rank Fusion.
+"""Hybrid index: vector + lexical fusion via Reciprocal Rank Fusion.
 
-Chroma est l'index persistant (``VectorIndex``) et la recherche lexicale
-(``LexicalIndex``) complète la couverture — un document pertinent pour le
-lexical mais manqué par le vectoriel remonte via l'autre leg. Les deux legs
-sont fusionnés par RRF, sans normalisation de scores.
+Chroma is the persistent index (``VectorIndex``) and the lexical search
+(``LexicalIndex``) completes the coverage — a document relevant for the
+lexical leg but missed by the vector leg still surfaces through the other leg.
+Both legs are fused by RRF, without score normalization.
 """
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ from typing import Any
 
 from sherlock_second_brain.application.ports import SearchIndex
 
-RRF_K = 60  # constante de lissage de la fusion RRF
+RRF_K = 60  # RRF fusion smoothing constant
 
 
 class HybridIndex(SearchIndex):
-    """Combine un index vectoriel et un index lexical via RRF."""
+    """Combines a vector index and a lexical index via RRF."""
 
     def __init__(self, vector: SearchIndex, lexical: SearchIndex, k: int = RRF_K) -> None:
         self._vector = vector

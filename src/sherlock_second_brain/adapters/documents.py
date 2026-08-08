@@ -1,7 +1,7 @@
-"""Énumération partagée des documents indexables (fiches, cases, skills).
+"""Shared enumeration of indexable documents (fiches, cases, skills).
 
-Les adapters ``chroma`` et ``lexical`` parcourent exactement les mêmes
-documents sources ; la construction (id, texte, métadonnées) est factorisée ici.
+The ``chroma`` and ``lexical`` adapters walk exactly the same source documents;
+the (id, text, metadata) construction is factored here.
 """
 
 from __future__ import annotations

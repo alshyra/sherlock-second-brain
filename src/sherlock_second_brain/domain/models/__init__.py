@@ -1,4 +1,4 @@
-"""Modèles pydantic du domaine (investigations, preuves, promotions)."""
+"""Domain pydantic models (investigations, evidence, promotions)."""
 
 from __future__ import annotations
 

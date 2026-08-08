@@ -1,8 +1,8 @@
-"""Index lexical : fallback de recherche quand chromadb n'est pas installé.
+"""Lexical index: search fallback when chromadb is not installed.
 
-Pur Python, aucune dépendance externe. Utilisé à la composition root quand
-l'extra ``[vector]`` est absent — les écritures d'index sont des no-ops
-(l'index n'existe pas), seules les lectures fonctionnent.
+Pure Python, no external dependency. Used at the composition root when the
+``[vector]`` extra is absent — index writes are no-ops (no index exists),
+only reads work.
 """
 
 from __future__ import annotations

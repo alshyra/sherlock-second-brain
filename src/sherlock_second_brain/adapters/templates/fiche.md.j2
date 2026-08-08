@@ -1,22 +1,22 @@
 # {{ case.title }}
 {% if case.promotion %}
 
-> Statut : validé (promu depuis `{{ case.id }}` le {{ case.promotion.date|fmt_date }})
+> Status: validated (promoted from `{{ case.id }}` on {{ case.promotion.date|fmt_date }})
 {% endif %}
 
-**Objectif :** {{ case.goal }}
+**Goal:** {{ case.goal }}
 {% if case.context %}
 
-**Contexte :** {{ case.context }}
+**Context:** {{ case.context }}
 {% endif %}
 
-## Constats
+## Findings
 {% if case.findings %}
 {% for finding in case.findings %}
 - {{ finding }}
 {% endfor %}
 {% else %}
-- _Aucun constat enregistré._
+- _No findings recorded._
 {% endif %}
 {% if case.conclusion %}
 
@@ -26,7 +26,7 @@
 {% endif %}
 {% if case.references %}
 
-## Références
+## References
 {% for ref in case.references %}
 - {{ ref }}
 {% endfor %}

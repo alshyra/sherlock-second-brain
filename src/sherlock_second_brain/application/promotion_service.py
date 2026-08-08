@@ -1,7 +1,7 @@
-"""Cas d'usage : promotion d'un case résolu en fiche ou en skill.
+"""Use case: promotion of a resolved case into a fiche or a skill.
 
-Le rendu markdown (fiche MD / SKILL.md) est délégué à des templates Jinja2
-dans ``adapters/templates/``, chargés une seule fois.
+The markdown rendering (MD fiche / SKILL.md) is delegated to Jinja2 templates
+in ``adapters/templates/``, loaded once.
 """
 
 from __future__ import annotations
@@ -32,10 +32,10 @@ def _fmt_date(iso: str) -> str:
 
 
 class PromotionService:
-    """Transforme un case ``resolved`` en artefact validé (fiche MD ou SKILL.md).
+    """Transforms a ``resolved`` case into a validated artifact (MD fiche or SKILL.md).
 
-    La promotion est l'acte de validation : elle écrit l'artefact dans la KB
-    et marque le case comme promu.
+    Promotion is the validation act: it writes the artifact into the KB and
+    marks the case as promoted.
     """
 
     def __init__(

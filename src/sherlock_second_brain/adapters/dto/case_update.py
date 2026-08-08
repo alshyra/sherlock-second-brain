@@ -1,7 +1,7 @@
-"""DTO d'entrée pour l'outil MCP ``case_update``.
+"""Input DTO for the ``case_update`` MCP tool.
 
-Typifie le ``fields`` dict accepté par ``case_update`` : champs optionnels,
-validation du résultat d'hypothèse dès la couche d'interface.
+Types the ``fields`` dict accepted by ``case_update``: optional fields, with
+hypothesis-result validation already at the interface layer.
 """
 
 from __future__ import annotations

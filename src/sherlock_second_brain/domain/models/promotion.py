@@ -1,4 +1,4 @@
-"""Modèle pydantic d'une promotion (case → fiche/skill)."""
+"""Pydantic model for a promotion (case → fiche/skill)."""
 
 from __future__ import annotations
 

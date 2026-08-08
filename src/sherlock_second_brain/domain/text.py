@@ -1,4 +1,4 @@
-"""Utilitaires du domaine : identifiants, slugs, temps."""
+"""Domain utilities: identifiers, slugs, time."""
 
 from __future__ import annotations
 

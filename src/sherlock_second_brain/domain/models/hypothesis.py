@@ -1,4 +1,4 @@
-"""Modèle pydantic d'une hypothèse d'investigation."""
+"""Pydantic model for an investigation hypothesis."""
 
 from __future__ import annotations
 

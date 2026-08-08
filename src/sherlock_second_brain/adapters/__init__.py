@@ -1,1 +1,1 @@
-"""Adaptateurs : implémentations concrètes des ports (stockage, index, DTO)."""
+"""Adapters: concrete implementations of the ports (storage, index, DTO)."""

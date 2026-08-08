@@ -1,9 +1,8 @@
-"""Adapter ChromaDB : index vectoriel sur les fiches, cases et skills.
+"""ChromaDB adapter: vector index over fiches, cases and skills.
 
-Chroma est une dépendance obligatoire : la recherche est hybride (vectoriel +
-lexical) et ``server.py`` compose ``VectorIndex`` avec ``LexicalIndex`` via
-``HybridIndex``. Le modèle d'embedding est multilingue (MiniLM-L12) pour une KB
-en français.
+Chroma is a mandatory dependency: search is hybrid (vector + lexical) and
+``server.py`` composes ``VectorIndex`` with ``LexicalIndex`` via ``HybridIndex``.
+The embedding model is multilingual (MiniLM-L12) for a French KB.
 """
 
 from __future__ import annotations
@@ -27,17 +26,17 @@ EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 
 class FastembedEmbeddingFunction:
-    """Embedding function Chroma adossée à fastembed (modèle multilingue).
+    """Chroma embedding function backed by fastembed (multilingual model).
 
-    L'instance fastembed est créée paresseusement au premier appel (le modèle
-    est téléchargé une fois puis mis en cache localement). L'interface est
-    celle dictée par Chroma (``EmbeddingFunction``) — volontairement non
-    subtypée ici car les generics de chroma sont trop stricts pour fastembed.
+    The fastembed instance is created lazily on first call (the model is
+    downloaded once then cached locally). The interface is the one dictated by
+    Chroma (``EmbeddingFunction``) — deliberately not subtyped here because
+    chroma generics are too strict for fastembed.
     """
 
     def __init__(self, model_name: str = EMBED_MODEL) -> None:
         self._model_name = model_name
-        self._model: Any = None  # noqa: ANN401  # API fastembed dynamique
+        self._model: Any = None  # noqa: ANN401  # dynamic fastembed API
 
     def __call__(self, input: Documents) -> Embeddings:
         if self._model is None:
@@ -75,21 +74,21 @@ class VectorIndex(SearchIndex):
         self,
         source: DocumentSource,
         vector_dir: Path,
-        embedding_function: Any = None,  # noqa: ANN401  # interface dictée par Chroma
+        embedding_function: Any = None,  # noqa: ANN401  # interface dictated by Chroma
     ) -> None:
         self._source = source
         self._vector_dir = vector_dir
-        self._embedding_function: Any = (  # noqa: ANN401  # interface dictée par Chroma
+        self._embedding_function: Any = (  # noqa: ANN401  # interface dictated by Chroma
             embedding_function or FastembedEmbeddingFunction()
         )
-        self._client: Any = None  # noqa: ANN401  # API ChromaDB dynamique
-        self._collection: Any = None  # noqa: ANN401  # API ChromaDB dynamique
+        self._client: Any = None  # noqa: ANN401  # dynamic ChromaDB API
+        self._collection: Any = None  # noqa: ANN401  # dynamic ChromaDB API
 
     @property
     def available(self) -> bool:
         return True
 
-    def _ensure(self, reset: bool = False) -> Any:  # noqa: ANN401  # API ChromaDB dynamique
+    def _ensure(self, reset: bool = False) -> Any:  # noqa: ANN401  # dynamic ChromaDB API
         if self._client is None:
             self._vector_dir.mkdir(parents=True, exist_ok=True)
             self._client = PersistentClient(

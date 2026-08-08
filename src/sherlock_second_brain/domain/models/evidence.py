@@ -1,4 +1,4 @@
-"""Modèle pydantic d'une preuve attachée à un case."""
+"""Pydantic model for a piece of evidence attached to a case."""
 
 from __future__ import annotations
 

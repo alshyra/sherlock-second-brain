@@ -1,4 +1,4 @@
-"""Modèle pydantic central : l'investigation (case)."""
+"""Central pydantic model: the investigation (case)."""
 
 from __future__ import annotations
 

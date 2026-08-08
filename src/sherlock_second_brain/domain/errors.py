@@ -1,4 +1,4 @@
-"""Exceptions du domaine de stockage."""
+"""Storage domain exceptions."""
 
 from __future__ import annotations
 

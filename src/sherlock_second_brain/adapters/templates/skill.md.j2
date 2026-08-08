@@ -6,34 +6,34 @@ description: >
 
 # {{ case.title }}
 
-Promu depuis `{{ case.id }}`. {{ case.goal }}
+Promoted from `{{ case.id }}`. {{ case.goal }}
 {% if case.context %}
 
-## Contexte
+## Context
 
 {{ case.context }}
 {% endif %}
 
-## Procédure
+## Procedure
 {% if case.steps %}
 {% for step in case.steps %}
 {{ step.order }}. {{ step.action }}
-{% if step.result %}   - Résultat : {{ step.result }}
+{% if step.result %}   - Result: {{ step.result }}
 {% endif %}
 {% endfor %}
 {% else %}
-_Aucune étape enregistrée._
+_No steps recorded._
 {% endif %}
 {% if case.findings %}
 
-## Points d'attention
+## Watch out for
 {% for finding in case.findings %}
 - {{ finding }}
 {% endfor %}
 {% endif %}
 {% if case.references %}
 
-## Références
+## References
 {% for ref in case.references %}
 - {{ ref }}
 {% endfor %}

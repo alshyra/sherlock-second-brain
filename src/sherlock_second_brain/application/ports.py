@@ -1,7 +1,7 @@
-"""Ports (Protocols) : contrats que les adapters doivent implémenter.
+"""Ports (Protocols): contracts that adapters must implement.
 
-La couche ``application`` dépend uniquement de ces protocoles — jamais des
-adapters concrets — pour rester testable et indépendante du stockage.
+The ``application`` layer depends only on these protocols — never on concrete
+adapters — to stay testable and storage-agnostic.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ class SkillRepository(Protocol):
 
 
 class DocumentSource(Protocol):
-    """Sources de documents pour l'index (fiches, cases, skills)."""
+    """Document sources for the index (fiches, cases, skills)."""
 
     def list_fiches(self) -> list[Path]: ...
 
