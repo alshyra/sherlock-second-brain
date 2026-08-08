@@ -1,5 +1,8 @@
 # sherlock-second-brain
 
+[![PyPI - Version](https://img.shields.io/pypi/v/sherlock-second-brain)](https://pypi.org/project/sherlock-second-brain)
+[![CI](https://github.com/alshyra/sherlock-second-brain/actions/workflows/ci.yml/badge.svg)](https://github.com/alshyra/sherlock-second-brain/actions/workflows/ci.yml)
+
 > Named after the famous detective of Baker Street who inspired this project: the
 > same way, we run rigorous investigations (symptoms, clues, hypotheses, evidence,
 > conclusion) to **debug**, analyze code, and **remember** what we learn across
@@ -46,6 +49,26 @@ Or from the repo:
 cd sherlock-second-brain
 uv sync
 ```
+
+## Two ways to run it
+
+Your data (cases, fiches, skills, vector index) always lives on the machine where
+the server process runs. The server is local-first (stdio), so you choose where
+that machine is:
+
+### A. Self-hosted (data stays on your machine)
+
+Install the package and run the stdio server locally — no third party ever touches
+your data. Configure `SHERLOCK_BRAIN_DATA_DIR` to choose where the files live
+(default `~/sherlock-second-brain-data`).
+
+### B. Managed on Glama (opt-in)
+
+Deploy your own instance on Glama's hosting from the [Glama listing](https://glama.ai/mcp/servers/alshyra/sherlock-second-brain):
+Glama builds the image, wraps the stdio transport into Streamable HTTP, and mounts
+a persistent volume at `/data`. Set `SHERLOCK_BRAIN_DATA_DIR=/data` so your
+knowledge survives redeploys. This is a paid managed option — the code itself is
+free and open source (MIT).
 
 ## Configuration
 
@@ -136,8 +159,10 @@ validated; promote it with `memory_promote` once it becomes validated knowledge.
 
 ## Case schema
 
-Defined in [`schema/case.schema.json`](schema/case.schema.json) — source of truth.
-Every case written through the MCP is validated against this schema.
+Defined in
+[`src/sherlock_second_brain/schema/case.schema.json`](src/sherlock_second_brain/schema/case.schema.json)
+— source of truth, shipped inside the package. Every case written through the MCP
+is validated against this schema (works from PyPI installs too).
 
 ## Tests
 

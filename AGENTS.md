@@ -52,9 +52,11 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
   - `memories/<id>.md` — `id` = `mem-YYYY-MM-DD-NNN` (per-day counter), YAML frontmatter + body
   - `fiches/<slug>.md`, `skills/<slug>/SKILL.md`
   - `vector/` — derived ChromaDB index, always rebuildable via the `index_rebuild` tool
-- `schema/case.schema.json` is the source of truth: `Storage._save_case` validates every case
-  against it (`SCHEMA_PATH` resolved by walking up to the repo root). If you touch the schema,
-  keep writes compatible or `test_written_case_matches_json_schema` fails.
+- `src/sherlock_second_brain/schema/case.schema.json` is the source of truth:
+  `Storage._save_case` validates every case against it (`SCHEMA_PATH` prefers the
+  schema bundled inside the package, falling back to walking up to the repo root).
+  If you touch the schema, keep writes compatible or
+  `test_written_case_matches_json_schema` fails.
 - Search is hybrid: `server.py` composes `HybridIndex(VectorIndex, LexicalIndex)` and
   fuses rankings by RRF. ChromaDB is a mandatory dependency (no fallback). The embedding
   model is multilingual (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`,
