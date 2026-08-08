@@ -2,6 +2,8 @@
 name = "sherlock-second-brain"
 version = "0.1.0"
 description = "Sherlock's second brain: an MCP server where every case is an investigation file (debug / troubleshooting), promoted into a validated fiche or skill once resolved, with a local vector index."
+license = "MIT"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=2.0.0",
