@@ -1,10 +1,11 @@
-"""Filesystem adapter: persistence of cases, fiches and skills.
+"""Filesystem adapter: persistence of cases, fiches, skills and memories.
 
 Layout::
 
     <data_dir>/
       cases/<case-id>/case.json
       cases/<case-id>/evidence/<file>
+      memories/<id>.md
       fiches/<slug>.md
       skills/<slug>/SKILL.md
       vector/            # chromadb persistent dir (gitignored)
@@ -24,14 +25,23 @@ from pathlib import Path
 import jsonschema
 from pydantic import ValidationError
 
+from sherlock_second_brain.adapters.frontmatter import parse_memory, render_memory
 from sherlock_second_brain.domain.errors import (
     CaseNotFoundError,
     CaseValidationError,
+    MemoryNotFoundError,
+    MemoryValidationError,
     StorageError,
 )
 from sherlock_second_brain.domain.models.case import Case
 from sherlock_second_brain.domain.models.evidence import Evidence
-from sherlock_second_brain.domain.text import CASE_ID_PATTERN, now_iso, slugify
+from sherlock_second_brain.domain.models.memory import Memory
+from sherlock_second_brain.domain.text import (
+    CASE_ID_PATTERN,
+    MEMORY_ID_PATTERN,
+    now_iso,
+    slugify,
+)
 
 _SCHEMA_NAME = "case.schema.json"
 VALID_STATUS = {"open", "in_progress", "resolved", "abandoned"}
@@ -76,6 +86,7 @@ class Storage:
     def __init__(self, data_dir: str | Path) -> None:
         self.root = Path(data_dir).resolve()
         self.cases_dir = self.root / "cases"
+        self.memories_dir = self.root / "memories"
         self.fiches_dir = self.root / "fiches"
         self.skills_dir = self.root / "skills"
         self.vector_dir = self.root / "vector"
@@ -87,6 +98,11 @@ class Storage:
     def _require_valid_case_id(case_id: str) -> None:
         if not re.fullmatch(CASE_ID_PATTERN, case_id):
             raise CaseNotFoundError(case_id)
+
+    @staticmethod
+    def _require_valid_memory_id(memory_id: str) -> None:
+        if not re.fullmatch(MEMORY_ID_PATTERN, memory_id):
+            raise MemoryNotFoundError(memory_id)
 
     # ── Cases ───────────────────────────────────────────────────
 
@@ -217,6 +233,96 @@ class Storage:
             case.touch()
             self._save_case(case)
             return case
+
+    # ── Memories ────────────────────────────────────────────────
+
+    @staticmethod
+    def _memory_path(memory_id: str) -> Path:
+        return Path("memories") / f"{memory_id}.md"
+
+    def memory_abs_path(self, memory_id: str) -> Path:
+        self._require_valid_memory_id(memory_id)
+        return self.memories_dir / f"{memory_id}.md"
+
+    def next_memory_id(self) -> str:
+        """Return the next ``mem-YYYY-MM-DD-NNN`` id (per-day counter)."""
+        day = now_iso()[:10]
+        prefix = f"mem-{day}-"
+        if not self.memories_dir.exists():
+            return f"{prefix}001"
+        existing = [
+            p.stem
+            for p in self.memories_dir.glob("*.md")
+            if p.stem.startswith(prefix)
+        ]
+        max_n = max((int(n) for n in (name[len(prefix):] for name in existing) if n.isdigit()), default=0)
+        return f"{prefix}{max_n + 1:03d}"
+
+    def _load_memory(self, memory_id: str) -> Memory:
+        path = self.memory_abs_path(memory_id)
+        if not path.exists():
+            raise MemoryNotFoundError(memory_id)
+        return parse_memory(path.read_text(encoding="utf-8"), id_from_filename=memory_id)
+
+    def create_memory(
+        self,
+        summary: str,
+        content: str,
+        tags: list[str] | None = None,
+        references: list[str] | None = None,
+        source: str | None = None,
+    ) -> Memory:
+        if not summary.strip():
+            raise MemoryValidationError("summary is required")
+        with _LOCK:
+            memory_id = self.next_memory_id()
+            now = now_iso()
+            memory = Memory(
+                id=memory_id,
+                summary=summary.strip(),
+                content=content.strip(),
+                tags=tags or [],
+                references=references or [],
+                source=source,
+                created_at=now,
+                updated_at=now,
+            )
+            _atomic_write(self.memory_abs_path(memory_id), render_memory(memory))
+            return memory
+
+    def get_memory(self, memory_id: str) -> Memory:
+        with _LOCK:
+            return self._load_memory(memory_id)
+
+    def list_memories(self, tag: str | None = None) -> list[Memory]:
+        with _LOCK:
+            if not self.memories_dir.exists():
+                return []
+            memories: list[Memory] = []
+            for path in sorted(self.memories_dir.glob("*.md")):
+                try:
+                    memory = parse_memory(path.read_text(encoding="utf-8"), id_from_filename=path.stem)
+                except MemoryValidationError:
+                    continue
+                if tag and tag not in memory.tags:
+                    continue
+                memories.append(memory)
+            return memories
+
+    def update_memory(self, memory: Memory) -> Memory:
+        with _LOCK:
+            self._load_memory(memory.id)  # ensure exists
+            memory.touch()
+            _atomic_write(self.memory_abs_path(memory.id), render_memory(memory))
+            return memory
+
+    def delete_memory(self, memory_id: str) -> None:
+        with _LOCK:
+            self._require_valid_memory_id(memory_id)
+            path = self.memory_abs_path(memory_id)
+            if not path.exists():
+                raise MemoryNotFoundError(memory_id)
+            path.unlink()
 
     # ── Fiches (KB) ─────────────────────────────────────────────
 

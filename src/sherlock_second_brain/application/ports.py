@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.memory import Memory
 
 
 class CaseRepository(Protocol):
@@ -55,14 +56,35 @@ class SkillRepository(Protocol):
     def delete_skill(self, slug: str) -> None: ...
 
 
+class MemoryRepository(Protocol):
+    def create_memory(
+        self,
+        summary: str,
+        content: str,
+        tags: list[str] | None = None,
+        references: list[str] | None = None,
+        source: str | None = None,
+    ) -> Memory: ...
+
+    def get_memory(self, memory_id: str) -> Memory: ...
+
+    def list_memories(self, tag: str | None = None) -> list[Memory]: ...
+
+    def update_memory(self, memory: Memory) -> Memory: ...
+
+    def delete_memory(self, memory_id: str) -> None: ...
+
+
 class DocumentSource(Protocol):
-    """Document sources for the index (fiches, cases, skills)."""
+    """Document sources for the index (fiches, cases, skills, memories)."""
 
     def list_fiches(self) -> list[Path]: ...
 
     def list_cases(self) -> list[Case]: ...
 
     def list_skills(self) -> list[Path]: ...
+
+    def list_memories(self) -> list[Memory]: ...
 
 
 class SearchIndex(Protocol):

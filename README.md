@@ -7,8 +7,10 @@
 
 MCP server + skill for **Sherlock's second brain**: validated knowledge lives in MD
 fiches and skills; everything **not yet validated** lives in **cases** (JSON
-investigation files for debugging and troubleshooting). A resolved case is promoted
-into a fiche or a skill through the MCP.
+investigation files for debugging and troubleshooting). Standalone notes worth
+remembering without an investigation live in **memories** (MD + YAML frontmatter).
+A resolved case is promoted into a fiche or a skill through the MCP; a memory can
+also be promoted into a fiche.
 
 ```
 source of truth (files)                      derived index (rebuildable)
@@ -16,7 +18,8 @@ source of truth (files)                      derived index (rebuildable)
 <data_dir>/
   cases/<case-id>/case.json          ──→   vector/ (chromadb, gitignored)
   cases/<case-id>/evidence/*.log           hybrid search: vector (Chroma)
-  fiches/*.md                                + lexical (RRF)
+  memories/<id>.md                           + lexical (RRF)
+  fiches/*.md
   skills/<slug>/SKILL.md
 ```
 
@@ -27,6 +30,7 @@ source of truth (files)                      derived index (rebuildable)
 - ChromaDB + fastembed (vector index, multilingual MiniLM-L12 model)
 - jsonschema (case validation)
 - jinja2 (rendering of promoted fiches / skills)
+- PyYAML (memory frontmatter)
 - Hexagonal architecture: `domain/` (pure pydantic) · `application/` (use cases + ports) · `adapters/` (filesystem, chroma, lexical, hybrid RRF, MCP DTO, templates)
 
 ## Installation (in a project)
@@ -47,7 +51,7 @@ uv sync
 
 | Variable | Role | Default |
 |----------|------|---------|
-| `SHERLOCK_BRAIN_DATA_DIR` | Root data directory (cases + kb + vector) | `~/sherlock-second-brain-data` |
+| `SHERLOCK_BRAIN_DATA_DIR` | Root data directory (cases + memories + kb + vector) | `~/sherlock-second-brain-data` |
 
 ## Wire the MCP server into opencode
 
@@ -94,6 +98,16 @@ ln -s /opt/sherlock-second-brain/agent/sherlock-second-brain.md ~/.config/openco
 | `case_delete` | Delete a case and its evidence |
 | `case_promote` | Promote a resolved case → fiche or skill |
 
+### Memories
+| Tool | Role |
+|------|------|
+| `memory_add` | Add a standalone note to remember (no case) |
+| `memory_get` / `memory_list` | Read / list memories (tag filter) |
+| `memory_search` | Semantic search restricted to memories (hydrated) |
+| `memory_update` | Update summary / content / tags / references / source |
+| `memory_delete` | Delete a memory |
+| `memory_promote` | Promote a memory → validated fiche |
+
 ### KB
 | Tool | Role |
 |------|------|
@@ -103,12 +117,22 @@ ln -s /opt/sherlock-second-brain/agent/sherlock-second-brain.md ~/.config/openco
 
 ## Hybrid search
 
-`case_search` combines two engines via **Reciprocal Rank Fusion** (`adapters/hybrid.py`):
+`case_search` (and `memory_search`) combines two engines via **Reciprocal Rank
+Fusion** (`adapters/hybrid.py`) over four sources: **fiches**, **cases**,
+**skills** and **memories**.
 
 - **Vector** (`adapters/chroma.py`): **multilingual** embeddings (MiniLM-L12, ~0.22GB, French included), persistent collection in `vector/`, rebuildable via `index_rebuild`.
 - **Lexical** (`adapters/lexical.py`): token overlap, zero dependency — a doc relevant for an exact term but missed by the vector engine still surfaces.
 
 RRF fusion: `score(d) = 1/(k + vector_rank) + 1/(k + lexical_rank)`, `k = 60`. The first `index_rebuild` downloads the model.
+
+## Memories
+
+A memory is a low-friction capture ("remember that the NAS runs Fedora 44"), with
+no case workflow. It is stored as `memories/<id>.md` with YAML frontmatter
+(metadata) and a free-form markdown body. Memories are indexed on every mutation
+(create included) so they are immediately searchable. A memory is **not**
+validated; promote it with `memory_promote` once it becomes validated knowledge.
 
 ## Case schema
 

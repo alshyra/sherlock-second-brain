@@ -1,4 +1,4 @@
-"""Shared enumeration of indexable documents (fiches, cases, skills).
+"""Shared enumeration of indexable documents (fiches, cases, skills, memories).
 
 The ``chroma`` and ``lexical`` adapters walk exactly the same source documents;
 the (id, text, metadata) construction is factored here.
@@ -12,7 +12,7 @@ from sherlock_second_brain.application.ports import DocumentSource
 
 
 def enumerate_documents(source: DocumentSource) -> list[tuple[str, str, dict[str, str]]]:
-    """Return (id, text, metadata) for every fiche, case and skill."""
+    """Return (id, text, metadata) for every fiche, case, skill and memory."""
     docs: list[tuple[str, str, dict[str, str]]] = []
     for path in source.list_fiches():
         text = path.read_text(encoding="utf-8")
@@ -23,4 +23,7 @@ def enumerate_documents(source: DocumentSource) -> list[tuple[str, str, dict[str
     for path in source.list_skills():
         text = path.read_text(encoding="utf-8")
         docs.append((f"skill:{path.parent.name}", text, {"kind": "skill", "slug": path.parent.name}))
+    for memory in source.list_memories():
+        text = f"{memory.summary}\n{memory.content}"
+        docs.append((f"memory:{memory.id}", text, {"kind": "memory", "id": memory.id}))
     return docs

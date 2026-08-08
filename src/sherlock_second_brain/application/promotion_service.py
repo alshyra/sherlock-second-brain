@@ -11,8 +11,14 @@ from datetime import UTC, datetime
 
 from jinja2 import Environment, PackageLoader
 
-from sherlock_second_brain.application.ports import CaseRepository, FicheRepository, SkillRepository
+from sherlock_second_brain.application.ports import (
+    CaseRepository,
+    FicheRepository,
+    MemoryRepository,
+    SkillRepository,
+)
 from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.memory import Memory
 from sherlock_second_brain.domain.models.promotion import Promotion
 from sherlock_second_brain.domain.text import slugify
 
@@ -43,10 +49,12 @@ class PromotionService:
         cases: CaseRepository,
         fiches: FicheRepository,
         skills: SkillRepository,
+        memories: MemoryRepository,
     ) -> None:
         self._cases = cases
         self._fiches = fiches
         self._skills = skills
+        self._memories = memories
         self._env = Environment(
             loader=PackageLoader("sherlock_second_brain.adapters", "templates"),
             autoescape=False,
@@ -58,6 +66,7 @@ class PromotionService:
         self._env.filters["backtick"] = lambda tag: f"`{tag}`"
         self._fiche_template = self._env.get_template("fiche.md.j2")
         self._skill_template = self._env.get_template("skill.md.j2")
+        self._memory_fiche_template = self._env.get_template("memory_fiche.md.j2")
 
     def fiche_content(self, case: Case) -> str:
         """Render a validated fiche (MD) from a resolved case."""
@@ -92,3 +101,25 @@ class PromotionService:
         case.touch()
         self._cases.update_case(case)
         return {"target": target, "path": rel, "slug": slug, "content": content}
+
+    def promote_memory(self, memory: Memory) -> dict[str, str]:
+        """Promote a memory into a validated fiche. Returns metadata.
+
+        Promotion is the validation act for a memory: it writes a fiche from
+        the memory (summary as title, content as body) and marks the memory as
+        promoted. A memory can only be promoted once.
+        """
+        if memory.promotion is not None:
+            raise ValueError(f"memory already promoted to {memory.promotion.target}")
+        slug = _linkify(memory.summary)
+        rel = f"fiches/{slug}.md"
+        memory.promotion = Promotion(
+            target="fiche",
+            path=rel,
+            date=datetime.now(UTC).isoformat(timespec="seconds"),
+        )
+        content = self._memory_fiche_template.render(memory=memory)
+        self._fiches.write_fiche(slug, content)
+        memory.touch()
+        self._memories.update_memory(memory)
+        return {"target": "fiche", "path": rel, "slug": slug, "content": content}

@@ -7,11 +7,12 @@ import pytest
 from sherlock_second_brain.adapters.filesystem import Storage
 from sherlock_second_brain.application.promotion_service import PromotionService
 from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.memory import Memory
 from sherlock_second_brain.domain.models.step import Step
 
 
 def _service(storage: Storage) -> PromotionService:
-    return PromotionService(storage, storage, storage)
+    return PromotionService(storage, storage, storage, storage)
 
 
 def _resolved_case(storage: Storage) -> Case:
@@ -84,3 +85,41 @@ def test_fiche_badges_promotion_status(storage: Storage) -> None:
     assert "Status: validated" in result["content"]
     fiche = storage.read_fiche(result["slug"])
     assert "Status: validated" in fiche
+
+
+def _memory(storage: Storage) -> Memory:
+    return storage.create_memory(
+        summary="Le NAS tourne sur Fedora 44",
+        content="Serveur Fedora 44 avec Jellyfin et les *Arr.",
+        tags=["nas", "infra"],
+        references=["https://fedoraproject.org"],
+        source="slack",
+    )
+
+
+def test_promote_memory_to_fiche(storage: Storage) -> None:
+    memory = _memory(storage)
+    result = _service(storage).promote_memory(memory)
+    assert result["target"] == "fiche"
+    assert result["path"].startswith("fiches/")
+    assert "Le NAS tourne sur Fedora 44" in result["content"]
+    assert "Status: validated" in result["content"]
+    fiche = storage.read_fiche(result["slug"])
+    assert "Jellyfin" in fiche
+    assert "## References" in fiche
+
+
+def test_promote_memory_marks_memory(storage: Storage) -> None:
+    memory = _memory(storage)
+    _service(storage).promote_memory(memory)
+    updated = storage.get_memory(memory.id)
+    assert updated.promotion is not None
+    assert updated.promotion.target == "fiche"
+
+
+def test_promote_memory_twice_rejected(storage: Storage) -> None:
+    memory = _memory(storage)
+    svc = _service(storage)
+    svc.promote_memory(memory)
+    with pytest.raises(ValueError):
+        svc.promote_memory(storage.get_memory(memory.id))
