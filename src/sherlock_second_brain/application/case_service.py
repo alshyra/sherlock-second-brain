@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from second_brain.application.ports import CaseRepository, SearchIndex
-from second_brain.domain.models.case import Case
-from second_brain.domain.models.hypothesis import Hypothesis
-from second_brain.domain.models.step import Step
+from sherlock_second_brain.application.ports import CaseRepository, SearchIndex
+from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.hypothesis import Hypothesis
+from sherlock_second_brain.domain.models.step import Step
 
 
 class CaseService:

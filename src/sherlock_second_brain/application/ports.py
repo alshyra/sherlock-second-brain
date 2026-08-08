@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol
 
-from second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.case import Case
 
 
 class CaseRepository(Protocol):

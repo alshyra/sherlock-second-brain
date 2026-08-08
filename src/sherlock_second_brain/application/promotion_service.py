@@ -11,10 +11,10 @@ from datetime import UTC, datetime
 
 from jinja2 import Environment, PackageLoader
 
-from second_brain.application.ports import CaseRepository, FicheRepository, SkillRepository
-from second_brain.domain.models.case import Case
-from second_brain.domain.models.promotion import Promotion
-from second_brain.domain.text import slugify
+from sherlock_second_brain.application.ports import CaseRepository, FicheRepository, SkillRepository
+from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.promotion import Promotion
+from sherlock_second_brain.domain.text import slugify
 
 VALID_PROMOTION_TARGETS = {"fiche", "skill"}
 
@@ -48,7 +48,7 @@ class PromotionService:
         self._fiches = fiches
         self._skills = skills
         self._env = Environment(
-            loader=PackageLoader("second_brain.adapters", "templates"),
+            loader=PackageLoader("sherlock_second_brain.adapters", "templates"),
             autoescape=False,
             trim_blocks=True,
             lstrip_blocks=True,

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from second_brain.adapters.filesystem import Storage
-from second_brain.application.promotion_service import PromotionService
-from second_brain.domain.models.case import Case
-from second_brain.domain.models.step import Step
+from sherlock_second_brain.adapters.filesystem import Storage
+from sherlock_second_brain.application.promotion_service import PromotionService
+from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.step import Step
 
 
 def _service(storage: Storage) -> PromotionService:

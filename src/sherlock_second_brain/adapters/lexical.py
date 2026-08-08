@@ -10,8 +10,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from second_brain.adapters.documents import enumerate_documents
-from second_brain.application.ports import DocumentSource, SearchIndex
+from sherlock_second_brain.adapters.documents import enumerate_documents
+from sherlock_second_brain.application.ports import DocumentSource, SearchIndex
 
 
 class LexicalIndex(SearchIndex):

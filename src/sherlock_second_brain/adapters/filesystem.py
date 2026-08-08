@@ -24,14 +24,14 @@ from pathlib import Path
 import jsonschema
 from pydantic import ValidationError
 
-from second_brain.domain.errors import (
+from sherlock_second_brain.domain.errors import (
     CaseNotFoundError,
     CaseValidationError,
     StorageError,
 )
-from second_brain.domain.models.case import Case
-from second_brain.domain.models.evidence import Evidence
-from second_brain.domain.text import CASE_ID_PATTERN, now_iso, slugify
+from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.evidence import Evidence
+from sherlock_second_brain.domain.text import CASE_ID_PATTERN, now_iso, slugify
 
 _SCHEMA_NAME = "case.schema.json"
 VALID_STATUS = {"open", "in_progress", "resolved", "abandoned"}
@@ -67,7 +67,7 @@ def _atomic_write(path: Path, content: str) -> None:
 
 
 class Storage:
-    """File-based storage for the second brain.
+    """File-based storage for Sherlock's second brain.
 
     Implémente ``CaseRepository``, ``FicheRepository``, ``SkillRepository``
     et ``DocumentSource`` (ports définis dans ``application.ports``).

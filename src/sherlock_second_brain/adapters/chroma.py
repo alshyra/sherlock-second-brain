@@ -17,12 +17,12 @@ from chromadb.api.types import Documents, Embeddings
 from chromadb.config import Settings
 from fastembed import TextEmbedding
 
-from second_brain.adapters.documents import enumerate_documents
-from second_brain.application.ports import DocumentSource, SearchIndex
+from sherlock_second_brain.adapters.documents import enumerate_documents
+from sherlock_second_brain.application.ports import DocumentSource, SearchIndex
 
 logger = logging.getLogger(__name__)
 
-_COLLECTION = "second_brain"
+_COLLECTION = "sherlock_second_brain"
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 

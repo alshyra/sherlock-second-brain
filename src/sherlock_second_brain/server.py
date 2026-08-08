@@ -1,7 +1,9 @@
-"""FastMCP server exposing the second brain as local MCP tools (stdio).
+"""FastMCP server exposing Sherlock's second brain as local MCP tools (stdio).
 
-Composition root : instancie les adapters concrets, les services applicatifs
-et expose les outils MCP qui délèguent aux services.
+Chaque ``case`` est un dossier d'enquête (debug / investigation) ; une fois
+résolu, il est promu en fiche ou skill validé. Composition root : instancie
+les adapters concrets, les services applicatifs et expose les outils MCP qui
+délèguent aux services.
 """
 
 from __future__ import annotations
@@ -11,19 +13,19 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
-from second_brain.adapters.chroma import VectorIndex
-from second_brain.adapters.dto.case_update import CaseUpdateFields
-from second_brain.adapters.filesystem import Storage
-from second_brain.adapters.hybrid import HybridIndex
-from second_brain.adapters.lexical import LexicalIndex
-from second_brain.application.case_service import CaseService
-from second_brain.application.ports import SearchIndex
-from second_brain.application.promotion_service import PromotionService
-from second_brain.domain.models.case import Case
+from sherlock_second_brain.adapters.chroma import VectorIndex
+from sherlock_second_brain.adapters.dto.case_update import CaseUpdateFields
+from sherlock_second_brain.adapters.filesystem import Storage
+from sherlock_second_brain.adapters.hybrid import HybridIndex
+from sherlock_second_brain.adapters.lexical import LexicalIndex
+from sherlock_second_brain.application.case_service import CaseService
+from sherlock_second_brain.application.ports import SearchIndex
+from sherlock_second_brain.application.promotion_service import PromotionService
+from sherlock_second_brain.domain.models.case import Case
 
-DEFAULT_DATA_DIR = os.environ.get("SECOND_BRAIN_DATA_DIR", str(Path.home() / "second-brain-data"))
+DEFAULT_DATA_DIR = os.environ.get("SHERLOCK_BRAIN_DATA_DIR", str(Path.home() / "sherlock-second-brain-data"))
 
-mcp = FastMCP("second-brain")
+mcp = FastMCP("sherlock-second-brain")
 
 _storage = Storage(DEFAULT_DATA_DIR)
 _vector = VectorIndex(_storage, _storage.vector_dir)

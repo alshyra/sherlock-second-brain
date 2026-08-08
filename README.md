@@ -1,8 +1,14 @@
-# second-brain
+# sherlock-second-brain
 
-MCP server + skill pour un **second cerveau** : la connaissance validée vit dans des
-fiches MD et des skills, tout ce qui n'est **pas encore validé** vit dans des **cases**
-(dossiers d'investigation JSON). Un case résolu se promeut en fiche ou en skill via le MCP.
+> Le célèbre enquêteur de Baker Street qui a inspiré ce projet : à sa manière,
+> on mène des enquêtes rigoureuses (symptômes, indices, hypothèses, preuves,
+> conclusion) pour **debugger**, analyser du code et **mémoriser** ce qu'on
+> apprend à travers plusieurs projets.
+
+MCP server + skill pour le **second cerveau de Sherlock** : la connaissance validée
+vit dans des fiches MD et des skills, tout ce qui n'est **pas encore validé** vit
+dans des **cases** (dossiers d'enquête JSON pour le debug et l'investigation).
+Un case résolu se promeut en fiche ou en skill via le MCP.
 
 ```
 source de vérité (fichiers)                      index dérivé (regénérable)
@@ -27,13 +33,13 @@ source de vérité (fichiers)                      index dérivé (regénérable
 
 ```bash
 uv init
-uv add second-brain
+uv add sherlock-second-brain
 ```
 
 Ou depuis le repo :
 
 ```bash
-cd second-brain
+cd sherlock-second-brain
 uv sync
 ```
 
@@ -41,7 +47,7 @@ uv sync
 
 | Variable | Rôle | Défaut |
 |----------|------|--------|
-| `SECOND_BRAIN_DATA_DIR` | Dossier racine des données (cases + kb + vector) | `~/second-brain-data` |
+| `SHERLOCK_BRAIN_DATA_DIR` | Dossier racine des données (cases + kb + vector) | `~/sherlock-second-brain-data` |
 
 ## Câbler le serveur MCP dans opencode
 
@@ -50,12 +56,12 @@ Ajouter à `~/.config/opencode/opencode.json` :
 ```json
 {
   "mcp": {
-    "second-brain": {
+    "sherlock-second-brain": {
       "type": "local",
-      "command": ["/opt/second-brain/.venv/bin/python", "-m", "second_brain.server"],
+      "command": ["/opt/sherlock-second-brain/.venv/bin/python", "-m", "sherlock_second_brain.server"],
       "enabled": true,
       "environment": {
-        "SECOND_BRAIN_DATA_DIR": "/opt/infra/kb"
+        "SHERLOCK_BRAIN_DATA_DIR": "/opt/infra/kb"
       }
     }
   }
@@ -64,11 +70,11 @@ Ajouter à `~/.config/opencode/opencode.json` :
 
 ## Installer l'agent globalement
 
-L'agent est versionné dans ce repo (`agent/second-brain.md`). Pour le rendre
+L'agent est versionné dans ce repo (`agent/sherlock-second-brain.md`). Pour le rendre
 disponible à tous les agents opencode :
 
 ```bash
-ln -s /opt/second-brain/agent/second-brain.md ~/.config/opencode/agent/second-brain.md
+ln -s /opt/sherlock-second-brain/agent/sherlock-second-brain.md ~/.config/opencode/agent/sherlock-second-brain.md
 ```
 
 > Sur une autre machine, cloner le repo puis créer le même lien pointant vers le checkout.

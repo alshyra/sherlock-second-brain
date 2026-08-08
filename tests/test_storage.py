@@ -7,9 +7,9 @@ import json
 import jsonschema
 import pytest
 
-from second_brain.adapters.filesystem import SCHEMA_PATH, Storage
-from second_brain.domain.errors import CaseNotFoundError, CaseValidationError
-from second_brain.domain.text import slugify
+from sherlock_second_brain.adapters.filesystem import SCHEMA_PATH, Storage
+from sherlock_second_brain.domain.errors import CaseNotFoundError, CaseValidationError
+from sherlock_second_brain.domain.text import slugify
 
 
 def test_create_case_minimal(storage: Storage) -> None:
@@ -51,7 +51,7 @@ def test_get_missing_raises(storage: Storage) -> None:
 
 
 def test_update_requires_existing(storage: Storage) -> None:
-    from second_brain.domain.models.case import Case
+    from sherlock_second_brain.domain.models.case import Case
 
     now = "2026-08-07T00:00:00"
     bogus = Case(id="case-2026-08-07-999", title="t", status="open", goal="g", context="", created_at=now, updated_at=now)

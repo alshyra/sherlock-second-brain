@@ -1,7 +1,7 @@
 [project]
-name = "second-brain"
+name = "sherlock-second-brain"
 version = "0.1.0"
-description = "MCP server for a second brain: investigation cases promoted into validated fiches and skills, with a local vector index."
+description = "Sherlock's second brain : MCP server où chaque case est un dossier d'enquête, promu en fiche ou skill validé une fois résolu (avec index vectoriel local)."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=2.0.0",
@@ -13,14 +13,14 @@ dependencies = [
 ]
 
 [project.scripts]
-second-brain-mcp = "second_brain.server:main"
+sherlock-second-brain-mcp = "sherlock_second_brain.server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/second_brain"]
+packages = ["src/sherlock_second_brain"]
 
 [tool.ruff]
 line-length = 100

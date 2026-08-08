@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from second_brain.adapters.chroma import VectorIndex
-from second_brain.adapters.filesystem import Storage
-from second_brain.adapters.hybrid import HybridIndex
-from second_brain.adapters.lexical import LexicalIndex
+from sherlock_second_brain.adapters.chroma import VectorIndex
+from sherlock_second_brain.adapters.filesystem import Storage
+from sherlock_second_brain.adapters.hybrid import HybridIndex
+from sherlock_second_brain.adapters.lexical import LexicalIndex
 
 
 def _seed(storage: Storage) -> None:

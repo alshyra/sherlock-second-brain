@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from second_brain.domain.models.evidence import Evidence
-from second_brain.domain.models.hypothesis import Hypothesis
-from second_brain.domain.models.promotion import Promotion
-from second_brain.domain.models.step import Step
-from second_brain.domain.text import CASE_ID_PATTERN, now_iso
+from sherlock_second_brain.domain.models.evidence import Evidence
+from sherlock_second_brain.domain.models.hypothesis import Hypothesis
+from sherlock_second_brain.domain.models.promotion import Promotion
+from sherlock_second_brain.domain.models.step import Step
+from sherlock_second_brain.domain.text import CASE_ID_PATTERN, now_iso
 
 
 class Case(BaseModel):

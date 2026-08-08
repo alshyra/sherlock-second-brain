@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from second_brain.application.ports import SearchIndex
+from sherlock_second_brain.application.ports import SearchIndex
 
 RRF_K = 60  # constante de lissage de la fusion RRF
 

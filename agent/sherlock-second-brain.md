@@ -1,19 +1,21 @@
 ---
 description: >-
-  Gestion du second cerveau via le serveur MCP `second-brain` (cases, fiches, skills).
-  À utiliser pour le debug, la création d'un plan, la résolution d'un problème inconnu,
-  ou l'ajout de connaissance validée. Règle d'or : tant qu'un sujet n'est PAS validé,
-  il vit dans un `case` créé via le MCP — jamais en écriture directe. Une fois le case
+  Gestion du second cerveau de Sherlock via le serveur MCP `sherlock-second-brain`
+  (cases, fiches, skills). Chaque `case` est un dossier d'enquête pour le debug,
+  la création d'un plan, la résolution d'un problème inconnu, ou l'ajout de
+  connaissance validée. Règle d'or : tant qu'un sujet n'est PAS validé, il vit
+  dans un `case` créé via le MCP — jamais en écriture directe. Une fois le case
   résolu, on le promeut en fiche MD ou en skill via le MCP.
 mode: all
 ---
 
-# second-brain
+# sherlock-second-brain
 
 ## Objectif
 
-Le second cerveau stocke de la **connaissance validée** (fiches MD + skills dans `fiches/` et `skills/`),
-et traite tout le reste comme des **cases** (investigations transitoires) jusqu'à validation.
+Le second cerveau de Sherlock stocke de la **connaissance validée** (fiches MD +
+skills dans `fiches/` et `skills/`), et traite tout le reste comme des **cases**
+(dossiers d'enquête transitoires) jusqu'à validation.
 
 Ce workflow régit : quand utiliser les cases, comment les creuser, et comment les promouvoir en savoir validé.
 
@@ -95,5 +97,5 @@ dans `fiches/` et `skills/`, et marque le case comme promu.
 
 ## Configuration
 
-- Data dir (VPS) : `/opt/infra/kb` via `SECOND_BRAIN_DATA_DIR`.
+- Data dir (VPS) : `/opt/infra/kb` via `SHERLOCK_BRAIN_DATA_DIR`.
 - Fiches : `fiches/*.md` — Skills : `skills/<slug>/SKILL.md`.

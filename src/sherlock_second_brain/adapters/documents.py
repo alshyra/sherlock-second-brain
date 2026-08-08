@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 
-from second_brain.application.ports import DocumentSource
+from sherlock_second_brain.application.ports import DocumentSource
 
 
 def enumerate_documents(source: DocumentSource) -> list[tuple[str, str, dict[str, str]]]:
