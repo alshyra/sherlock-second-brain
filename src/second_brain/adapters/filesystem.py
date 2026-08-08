@@ -1,4 +1,4 @@
-"""Filesystem storage adapter for cases, fiches and skills.
+"""Adapter filesystem : persistance des cases, fiches et skills.
 
 Layout::
 
@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import tempfile
 import threading
 import uuid
@@ -23,33 +24,33 @@ from pathlib import Path
 import jsonschema
 from pydantic import ValidationError
 
-from second_brain.domain import Case, Evidence, now_iso
+from second_brain.domain.errors import (
+    CaseNotFoundError,
+    CaseValidationError,
+    StorageError,
+)
+from second_brain.domain.models.case import Case
+from second_brain.domain.models.evidence import Evidence
+from second_brain.domain.text import CASE_ID_PATTERN, now_iso, slugify
 
-SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schema" / "case.schema.json"
-
+_SCHEMA_NAME = "case.schema.json"
 VALID_STATUS = {"open", "in_progress", "resolved", "abandoned"}
 _LOCK = threading.RLock()
 
 
-class StorageError(Exception):
-    """Base error for storage operations."""
+def _find_schema() -> Path:
+    """Résout ``schema/case.schema.json`` en remontant vers la racine du repo.
+
+    Robuste quel que soit le point de montage du package (repo ou installé).
+    """
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "schema" / _SCHEMA_NAME
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(f"schema introuvable : {_SCHEMA_NAME}")
 
 
-class CaseNotFoundError(StorageError):
-    def __init__(self, case_id: str) -> None:
-        super().__init__(f"case not found: {case_id}")
-        self.case_id = case_id
-
-
-class CaseExistsError(StorageError):
-    def __init__(self, case_id: str) -> None:
-        super().__init__(f"case already exists: {case_id}")
-        self.case_id = case_id
-
-
-class CaseValidationError(StorageError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
+SCHEMA_PATH = _find_schema()
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -65,16 +66,12 @@ def _atomic_write(path: Path, content: str) -> None:
         raise
 
 
-def slugify(text: str) -> str:
-    """Turn arbitrary text into a safe lowercase slug (keeps accents)."""
-    text = text.lower().strip()
-    text = re.sub(r"[^a-z0-9àâçéèêëîïôûùüÿœæ'-]+", "-", text)
-    text = text.strip("-")
-    return text or uuid.uuid4().hex[:8]
-
-
 class Storage:
-    """File-based storage for the second brain."""
+    """File-based storage for the second brain.
+
+    Implémente ``CaseRepository``, ``FicheRepository``, ``SkillRepository``
+    et ``DocumentSource`` (ports définis dans ``application.ports``).
+    """
 
     def __init__(self, data_dir: str | Path) -> None:
         self.root = Path(data_dir).resolve()
@@ -84,6 +81,13 @@ class Storage:
         self.vector_dir = self.root / "vector"
         self.root.mkdir(parents=True, exist_ok=True)
 
+    # ── Helpers de sécurité ──────────────────────────────────────
+
+    @staticmethod
+    def _require_valid_case_id(case_id: str) -> None:
+        if not re.fullmatch(CASE_ID_PATTERN, case_id):
+            raise CaseNotFoundError(case_id)
+
     # ── Cases ───────────────────────────────────────────────────
 
     @staticmethod
@@ -91,6 +95,7 @@ class Storage:
         return Path("cases") / case_id / "case.json"
 
     def case_abs_path(self, case_id: str) -> Path:
+        self._require_valid_case_id(case_id)
         return self.cases_dir / case_id / "case.json"
 
     def _load_case(self, case_id: str) -> Case:
@@ -188,20 +193,21 @@ class Storage:
 
     def delete_case(self, case_id: str) -> None:
         with _LOCK:
+            self._require_valid_case_id(case_id)
             path = self.cases_dir / case_id
             if not path.exists():
                 raise CaseNotFoundError(case_id)
-            import shutil
-
             shutil.rmtree(path)
 
-    def add_evidence(self, case_id: str, content: str, summary: str, filename: str | None = None) -> Case:
+    def add_evidence(
+        self, case_id: str, content: str, summary: str, filename: str | None = None
+    ) -> Case:
         with _LOCK:
             case = self._load_case(case_id)
             ev_dir = self.cases_dir / case_id / "evidence"
             ev_dir.mkdir(parents=True, exist_ok=True)
             fname = filename or f"{slugify(summary)}-{uuid.uuid4().hex[:6]}.txt"
-            path = ev_dir / fname
+            path = ev_dir / Path(fname).name  # ignore tout chemin parent
             _atomic_write(path, content)
             rel = f"evidence/{path.name}"
             case.evidence = [
@@ -218,6 +224,7 @@ class Storage:
         path = self.fiches_dir / f"{slug}.md"
         _atomic_write(path, content)
         return path
+
     def read_fiche(self, slug: str) -> str:
         path = self.fiches_dir / f"{slug}.md"
         if not path.exists():
@@ -257,6 +264,4 @@ class Storage:
         path = self.skills_dir / slug
         if not (path / "SKILL.md").exists():
             raise StorageError(f"skill not found: {slug}")
-        import shutil
-
         shutil.rmtree(path)

@@ -9,8 +9,8 @@ source de vérité (fichiers)                      index dérivé (regénérable
 ────────────────────────────────────             ────────────────────────────
 <data_dir>/
   cases/<case-id>/case.json          ──→   vector/ (chromadb, gitignoré)
-  cases/<case-id>/evidence/*.log           + recherche lexicale (fallback)
-  fiches/*.md
+  cases/<case-id>/evidence/*.log           recherche hybride : vectoriel (Chroma)
+  fiches/*.md                                + lexical (RRF)
   skills/<slug>/SKILL.md
 ```
 
@@ -18,21 +18,23 @@ source de vérité (fichiers)                      index dérivé (regénérable
 
 - Python 3.12+, `uv`
 - [FastMCP](https://github.com/jlowin/fastmcp) (stdio)
-- ChromaDB + fastembed (index vectoriel, *optionnel* : `[vector]`)
+- ChromaDB + fastembed (index vectoriel, modèle multilingue MiniLM-L12)
 - jsonschema (validation des cases)
+- jinja2 (rendu des fiches / skills promues)
+- Architecture hexagonale : `domain/` (pydantic pur) · `application/` (cas d'usage + ports) · `adapters/` (filesystem, chroma, lexical, hybride RRF, DTO MCP, templates)
 
 ## Installation (dans un projet)
 
 ```bash
 uv init
-uv add "second-brain[vector]"          # ou sans [vector] pour le fallback lexical
+uv add second-brain
 ```
 
 Ou depuis le repo :
 
 ```bash
 cd second-brain
-uv sync --extra vector
+uv sync
 ```
 
 ## Configuration
@@ -60,16 +62,17 @@ Ajouter à `~/.config/opencode/opencode.json` :
 }
 ```
 
-## Installer le skill globalement
+## Installer l'agent globalement
 
-Le skill est versionné dans ce repo (`skill/second-brain/SKILL.md`). Pour le rendre
+L'agent est versionné dans ce repo (`agent/second-brain.md`). Pour le rendre
 disponible à tous les agents opencode :
 
 ```bash
-ln -s /opt/second-brain/skill/second-brain ~/.agents/skills/second-brain
+ln -s /opt/second-brain/agent/second-brain.md ~/.config/opencode/agent/second-brain.md
 ```
 
 > Sur une autre machine, cloner le repo puis créer le même lien pointant vers le checkout.
+> Redémarrer opencode après l'installation.
 
 ## Outils MCP
 
@@ -79,17 +82,27 @@ ln -s /opt/second-brain/skill/second-brain ~/.agents/skills/second-brain
 | `case_create` | Créer une investigation (sujet non validé) |
 | `case_get` / `case_list` | Lire / lister (filtres status, tag) |
 | `case_search` | Recherche sémantique (cases + KB) |
-| `case_update` | Ajouter findings / steps / hypothèses / conclusion |
+| `case_update` | Ajouter findings / steps / hypothèses / conclusion / résultat d'hypothèse |
 | `case_add_evidence` | Attacher une preuve (log, sortie, note) |
 | `case_set_status` | open / in_progress / resolved / abandoned |
+| `case_delete` | Supprimer un case et ses preuves |
 | `case_promote` | Promouvoir un case résolu → fiche ou skill |
 
 ### KB
 | Outil | Rôle |
 |-------|------|
-| `fiche_list` / `fiche_read` / `fiche_write` | CRUD des fiches validées |
-| `skill_list` / `skill_read` | CRUD des skills validés |
+| `fiche_list` / `fiche_read` / `fiche_write` / `fiche_delete` | CRUD des fiches validées |
+| `skill_list` / `skill_read` / `skill_write` / `skill_delete` | CRUD des skills validés |
 | `index_rebuild` | Reconstruire l'index vectoriel depuis les fichiers |
+
+## Recherche hybride
+
+`case_search` combine deux moteurs via **Reciprocal Rank Fusion** (`adapters/hybrid.py`) :
+
+- **Vectoriel** (`adapters/chroma.py`) : embeddings **multilingues** (MiniLM-L12, ~0.22GB, français inclus), collection persistante dans `vector/`, régénérable via `index_rebuild`.
+- **Lexical** (`adapters/lexical.py`) : chevauchement de tokens, zéro dépendance — un doc pertinent pour un terme exact mais raté par le vectoriel remonte quand même.
+
+Fusion RRF : `score(d) = 1/(k + rang_vector) + 1/(k + rang_lexical)`, `k = 60`. Le premier `index_rebuild` télécharge le modèle.
 
 ## Schéma des cases
 
@@ -99,6 +112,7 @@ Tout case écrit via le MCP est validé contre ce schéma.
 ## Tests
 
 ```bash
-uv run pytest tests/ -v
-uv run ruff check src/ tests/
+uv run ruff check src/ tests/        # lint
+uv run ty check                      # type checking
+uv run pytest tests/ -v              # tests
 ```

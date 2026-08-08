@@ -7,11 +7,7 @@ dependencies = [
     "fastmcp>=2.0.0",
     "pydantic>=2.0.0",
     "jsonschema>=4.23.0",
-    "pyyaml>=6.0.3",
-]
-
-[project.optional-dependencies]
-vector = [
+    "jinja2>=3.1.6",
     "chromadb>=0.5.0",
     "fastembed>=0.3.0",
 ]
@@ -34,8 +30,16 @@ target-version = "py312"
 quote-style = "double"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
+select = ["E", "F", "I", "W", "UP", "B", "ANN", "PYI"]
 ignore = ["E501"]
+preview = true
+
+[tool.ty.rules]
+missing-type-argument = "error"
+possibly-unresolved-reference = "warn"
+
+[tool.ty.environment]
+root = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
@@ -45,4 +49,5 @@ testpaths = ["tests"]
 dev = [
     "pytest>=8.0.0",
     "ruff>=0.15.15",
+    "ty>=0.0.69",
 ]
