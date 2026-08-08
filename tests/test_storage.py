@@ -7,13 +7,13 @@ import json
 import jsonschema
 import pytest
 
-from second_brain.adapters.filesystem import SCHEMA_PATH, Storage
-from second_brain.domain.errors import CaseNotFoundError, CaseValidationError
-from second_brain.domain.text import slugify
+from sherlock_second_brain.adapters.filesystem import SCHEMA_PATH, Storage
+from sherlock_second_brain.domain.errors import CaseNotFoundError, CaseValidationError
+from sherlock_second_brain.domain.text import slugify
 
 
 def test_create_case_minimal(storage: Storage) -> None:
-    case = storage.create_case(title="Debug Traefik", goal="Comprendre l'échec du renouvellement")
+    case = storage.create_case(title="Debug Traefik", goal="Understand the renewal failure")
     assert case.id.startswith("case-")
     assert case.status == "open"
     assert case.tags == []
@@ -34,10 +34,10 @@ def test_schema_validation_rejects_invalid(storage: Storage) -> None:
 
 
 def test_written_case_matches_json_schema(storage: Storage) -> None:
-    case = storage.create_case(title="Plan migration", goal="Migrer vers S3", tags=["s3"])
-    storage.add_evidence(case.id, "log line 1", "preuve de la cause")
+    case = storage.create_case(title="Migration plan", goal="Migrate to S3", tags=["s3"])
+    storage.add_evidence(case.id, "log line 1", "evidence of the cause")
     updated = storage.get_case(case.id)
-    updated.findings.append("cause identifiée")
+    updated.findings.append("cause identified")
     storage.update_case(updated)
 
     schema = json.loads(SCHEMA_PATH.read_text())
@@ -51,7 +51,7 @@ def test_get_missing_raises(storage: Storage) -> None:
 
 
 def test_update_requires_existing(storage: Storage) -> None:
-    from second_brain.domain.models.case import Case
+    from sherlock_second_brain.domain.models.case import Case
 
     now = "2026-08-07T00:00:00"
     bogus = Case(id="case-2026-08-07-999", title="t", status="open", goal="g", context="", created_at=now, updated_at=now)
@@ -86,7 +86,7 @@ def test_delete_case_rejects_malformed_id(storage: Storage) -> None:
 
 def test_evidence_persists_to_disk(storage: Storage) -> None:
     case = storage.create_case(title="a", goal="g")
-    updated = storage.add_evidence(case.id, "ERROR 500", "erreur serveur", filename="err.log")
+    updated = storage.add_evidence(case.id, "ERROR 500", "server error", filename="err.log")
     assert len(updated.evidence) == 1
     ev_file = storage.cases_dir / case.id / "evidence" / "err.log"
     assert ev_file.read_text() == "ERROR 500"
@@ -95,7 +95,7 @@ def test_evidence_persists_to_disk(storage: Storage) -> None:
 
 def test_evidence_filename_ignores_parent_dirs(storage: Storage) -> None:
     case = storage.create_case(title="a", goal="g")
-    updated = storage.add_evidence(case.id, "x", "résumé", filename="../../evil.txt")
+    updated = storage.add_evidence(case.id, "x", "summary", filename="../../evil.txt")
     assert updated.evidence[0].path == "evidence/evil.txt"
     assert not (storage.root / "evil.txt").exists()
     assert (storage.cases_dir / case.id / "evidence" / "evil.txt").exists()

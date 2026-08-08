@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for second-brain tests."""
+"""Shared pytest fixtures for sherlock-second-brain tests."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from second_brain.adapters.filesystem import Storage
+from sherlock_second_brain.adapters.filesystem import Storage
 
 
 @pytest.fixture

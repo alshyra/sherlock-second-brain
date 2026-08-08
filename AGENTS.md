@@ -1,8 +1,11 @@
 # AGENTS.md
 
-Second brain MCP server: validated knowledge lives in `fiches/` and `skills/`; everything
-unvalidated lives in `cases/` (JSON investigations). A `resolved` case is promoted into a
-fiche or skill via the MCP. Repo language is **French** (README, docstrings, generated output).
+Sherlock's second brain MCP server: validated knowledge lives in `fiches/` and `skills/`;
+everything unvalidated lives in `cases/` (JSON investigations — investigation files for
+debugging and analysis). A `resolved` case is promoted into a fiche or skill via the MCP.
+Repo language is **English** (code, docs, generated output) — the `README.md` is in English
+because it is parsed by Glama (https://glama.ai). Some tests keep French content
+(`tests/test_vector.py`, `test_slugify`) to exercise multilingual support.
 
 ## Commands
 
@@ -16,13 +19,13 @@ uv sync                                           # installs deps (chromadb+fast
 
 Required verification order: `ruff check` → `ty check` → `pytest`.
 
-Run the server with `uv run python -m second_brain.server` — this is a stdio MCP server,
+Run the server with `uv run python -m sherlock_second_brain.server` — this is a stdio MCP server,
 it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json` →
-`SECOND_BRAIN_DATA_DIR=/opt/infra/kb`).
+`SHERLOCK_BRAIN_DATA_DIR=/opt/infra/kb`).
 
 ## Architecture (hexagonal)
 
-- `src/second_brain/`:
+- `src/sherlock_second_brain/`:
   - `server.py` — composition root: instantiates adapters+services, `@mcp.tool()` defs
   - `domain/` — pure pydantic, one file per class (`models/{case,hypothesis,step,evidence,promotion}.py`),
     plus `errors.py` (StorageError hierarchy) and `text.py` (`slugify`, `now_iso`, `CASE_ID_PATTERN`)
@@ -33,7 +36,7 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
     (`LexicalIndex`), `hybrid.py` (`HybridIndex` RRF), `dto/case_update.py`
     (`CaseUpdateFields` for the `case_update` fields), `templates/` (Jinja2:
     `fiche.md.j2`, `skill.md.j2` rendered by `PromotionService`)
-- Data layout under `SECOND_BRAIN_DATA_DIR` (default `~/second-brain-data`):
+- Data layout under `SHERLOCK_BRAIN_DATA_DIR` (default `~/sherlock-second-brain-data`):
   - `cases/<case-id>/case.json` + `cases/<case-id>/evidence/*` — `case-id` = `case-YYYY-MM-DD-NNN` (per-day counter)
   - `fiches/<slug>.md`, `skills/<slug>/SKILL.md`
   - `vector/` — derived ChromaDB index, always rebuildable via the `index_rebuild` tool
@@ -47,13 +50,13 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
   `skill:<slug>`. Document enumeration is shared in `adapters/documents.py`.
 - `CaseService` maintains the index on every mutation (update/evidence/status/delete).
 
-## Conventions de code
+## Code conventions
 
-- **Pas de lazy import** : les imports se font en haut de module, jamais dans le corps des
-  fonctions. Les dépendances optionnelles (aucune aujourd'hui : chromadb+fastembed sont
-  obligatoires) se géreraient à la composition root par `try/except` d'import.
+- **No lazy imports**: imports live at the top of modules, never inside function bodies.
+  Optional dependencies (none today: chromadb+fastembed are mandatory) would be handled
+  at the composition root with a `try/except` import.
 
-## Domain workflow (matches `agent/second-brain.md`)
+## Domain workflow (matches `agent/sherlock-second-brain.md`)
 
 - Never direct-write validated knowledge. Unvalidated topics → `case_create`; promotion
   (`case_promote`, target `fiche`|`skill`, status must be `resolved`) is the validation act.
@@ -62,7 +65,7 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
   `conclusion`, `hypothesis_statement`/`hypothesis_test`, `hypothesis_result`,
   `tags`, `references`) — validated by the `CaseUpdateFields` DTO.
 - `slugify` keeps accents (`très-long`); skills are stored as `skills/<slug>/SKILL.md`, the
-  workflow agent lives in `agent/second-brain.md` (symlinked to `~/.config/opencode/agent/`).
+  workflow agent lives in `agent/sherlock-second-brain.md` (symlinked to `~/.config/opencode/agent/`).
 
 ## Editor LSP
 

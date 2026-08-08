@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from second_brain.adapters.chroma import VectorIndex
-from second_brain.adapters.filesystem import Storage
-from second_brain.adapters.hybrid import HybridIndex
-from second_brain.adapters.lexical import LexicalIndex
+from sherlock_second_brain.adapters.chroma import VectorIndex
+from sherlock_second_brain.adapters.filesystem import Storage
+from sherlock_second_brain.adapters.hybrid import HybridIndex
+from sherlock_second_brain.adapters.lexical import LexicalIndex
 
 
 def _seed(storage: Storage) -> None:
@@ -63,7 +63,7 @@ def test_hybrid_keeps_doc_found_by_lexical_only(storage: Storage) -> None:
     idx = _hybrid(storage)
     idx.rebuild()
     results = idx.query("backup quotidien espace disque", top_k=5)
-    # le lexical retrouve la fiche postgres-backup même si le vectoriel la rate
+    # the lexical leg finds postgres-backup even if the vector leg misses it
     assert any(r["id"] == "fiche:postgres-backup" for r in results)
 
 

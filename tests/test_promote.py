@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from second_brain.adapters.filesystem import Storage
-from second_brain.application.promotion_service import PromotionService
-from second_brain.domain.models.case import Case
-from second_brain.domain.models.step import Step
+from sherlock_second_brain.adapters.filesystem import Storage
+from sherlock_second_brain.application.promotion_service import PromotionService
+from sherlock_second_brain.domain.models.case import Case
+from sherlock_second_brain.domain.models.step import Step
 
 
 def _service(storage: Storage) -> PromotionService:
@@ -16,19 +16,19 @@ def _service(storage: Storage) -> PromotionService:
 
 def _resolved_case(storage: Storage) -> Case:
     case = storage.create_case(
-        title="Réparer le renouvellement SSL",
-        goal="Comprendre pourquoi le renouvellement Let's Encrypt échoue",
-        context="Cert en échec depuis 3 jours",
+        title="Fix SSL renewal",
+        goal="Understand why the Let's Encrypt renewal fails",
+        context="Cert failing for 3 days",
         tags=["traefik", "ssl"],
         references=["https://example.com/docs"],
     )
-    storage.add_evidence(case.id, "error: invalid response", "cause du refus", "01.log")
+    storage.add_evidence(case.id, "error: invalid response", "cause of refusal", "01.log")
     case = storage.get_case(case.id)
-    case.findings.append("Le DNS-01 renvoie un TXT trop long")
-    case.conclusion = "Réduire la taille du record TXT résout le problème"
+    case.findings.append("DNS-01 returns a TXT record that is too long")
+    case.conclusion = "Reducing the TXT record size fixes the problem"
     case.steps = [
         *case.steps,
-        Step(order=1, action="tester le record TXT", result="trop long"),
+        Step(order=1, action="test the TXT record", result="too long"),
     ]
     case.status = "resolved"
     storage.update_case(case)
@@ -52,11 +52,11 @@ def test_promote_to_fiche(storage: Storage) -> None:
     result = _service(storage).promote(case, "fiche")
     assert result["target"] == "fiche"
     assert result["path"].startswith("fiches/")
-    assert "## Constats" in result["content"]
-    assert "cause du refus" not in result["content"]  # preuve reste dans le case
+    assert "## Findings" in result["content"]
+    assert "cause of refusal" not in result["content"]  # evidence stays in the case
     fiche = storage.read_fiche(result["slug"])
     assert case.title in fiche
-    assert "cause du refus" not in fiche
+    assert "cause of refusal" not in fiche
 
 
 def test_promote_to_skill(storage: Storage) -> None:
@@ -64,10 +64,10 @@ def test_promote_to_skill(storage: Storage) -> None:
     result = _service(storage).promote(case, "skill")
     assert result["target"] == "skill"
     assert result["path"].endswith("SKILL.md")
-    assert "## Procédure" in result["content"]
+    assert "## Procedure" in result["content"]
     assert "name:" in result["content"]
     skill = storage.read_skill(result["slug"])
-    assert "1. tester le record TXT" in skill
+    assert "1. test the TXT record" in skill
 
 
 def test_promotion_marks_case(storage: Storage) -> None:
@@ -81,6 +81,6 @@ def test_promotion_marks_case(storage: Storage) -> None:
 def test_fiche_badges_promotion_status(storage: Storage) -> None:
     case = _resolved_case(storage)
     result = _service(storage).promote(case, "fiche")
-    assert "Statut : validé" in result["content"]
+    assert "Status: validated" in result["content"]
     fiche = storage.read_fiche(result["slug"])
-    assert "Statut : validé" in fiche
+    assert "Status: validated" in fiche

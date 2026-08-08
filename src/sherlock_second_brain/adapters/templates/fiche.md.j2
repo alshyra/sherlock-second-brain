@@ -1,0 +1,39 @@
+# {{ case.title }}
+{% if case.promotion %}
+
+> Status: validated (promoted from `{{ case.id }}` on {{ case.promotion.date|fmt_date }})
+{% endif %}
+
+**Goal:** {{ case.goal }}
+{% if case.context %}
+
+**Context:** {{ case.context }}
+{% endif %}
+
+## Findings
+{% if case.findings %}
+{% for finding in case.findings %}
+- {{ finding }}
+{% endfor %}
+{% else %}
+- _No findings recorded._
+{% endif %}
+{% if case.conclusion %}
+
+## Conclusion
+
+{{ case.conclusion }}
+{% endif %}
+{% if case.references %}
+
+## References
+{% for ref in case.references %}
+- {{ ref }}
+{% endfor %}
+{% endif %}
+{% if case.tags %}
+
+## Tags
+
+{{ case.tags|map("backtick")|join(" ") }}
+{% endif %}

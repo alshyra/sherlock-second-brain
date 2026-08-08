@@ -1,11 +1,11 @@
-"""Tests du DTO d'entrée de ``case_update``."""
+"""Tests for the ``case_update`` input DTO."""
 
 from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
 
-from second_brain.adapters.dto.case_update import CaseUpdateFields
+from sherlock_second_brain.adapters.dto.case_update import CaseUpdateFields
 
 
 def test_empty_fields_default() -> None:
