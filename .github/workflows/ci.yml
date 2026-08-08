@@ -18,3 +18,11 @@ jobs:
         run: uv run ty check
       - name: Test
         run: uv run pytest tests/ -v
+      - name: Build package
+        run: uv build
+      - name: Check wheel contents
+        run: |
+          wheel=$(ls dist/*.whl)
+          unzip -l "$wheel" | grep -q "sherlock_second_brain/schema/case.schema.json"
+          unzip -l "$wheel" | grep -q "sherlock_second_brain/adapters/templates/fiche.md.j2"
+          unzip -l "$wheel" | grep -q "sherlock_second_brain/adapters/templates/skill.md.j2"

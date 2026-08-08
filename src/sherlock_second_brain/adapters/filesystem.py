@@ -39,15 +39,19 @@ _LOCK = threading.RLock()
 
 
 def _find_schema() -> Path:
-    """Resolves ``schema/case.schema.json`` by walking up to the repo root.
+    """Resolve ``case.schema.json``, shipped inside the package.
 
-    Robust regardless of how the package is mounted (repo or installed).
+    Prefers the schema bundled with the package (works when installed from
+    PyPI); falls back to walking up to the repo root for a source checkout.
     """
+    bundled = Path(__file__).resolve().parent.parent / "schema" / _SCHEMA_NAME
+    if bundled.exists():
+        return bundled
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "schema" / _SCHEMA_NAME
         if candidate.exists():
             return candidate
-    raise FileNotFoundError(f"schema introuvable : {_SCHEMA_NAME}")
+    raise FileNotFoundError(f"schema not found: {_SCHEMA_NAME}")
 
 
 SCHEMA_PATH = _find_schema()
