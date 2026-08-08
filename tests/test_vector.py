@@ -6,6 +6,7 @@ from sherlock_second_brain.adapters.chroma import VectorIndex
 from sherlock_second_brain.adapters.filesystem import Storage
 from sherlock_second_brain.adapters.hybrid import HybridIndex
 from sherlock_second_brain.adapters.lexical import LexicalIndex
+from sherlock_second_brain.domain.models.case import Case
 
 
 def _seed(storage: Storage) -> None:
@@ -17,12 +18,16 @@ def _seed(storage: Storage) -> None:
         "postgres-backup",
         "# Sauvegarde PostgreSQL\nLe backup quotidien échoue quand l'espace disque est plein.",
     )
-    case = storage.create_case(
+    case = Case.create_case(
+        storage.next_case_id(),
         title="Cert échec",
         goal="Comprendre l'échec de renouvellement",
         context="DNS-01 renvoie un record trop long",
     )
-    storage.add_evidence(case.id, "invalid response from http-01", "cause", "01.log")
+    storage.save_case(case)
+    rel = storage.write_evidence(case.id, "01.log", "invalid response from http-01")
+    case.add_evidence("cause", rel)
+    storage.save_case(case)
 
 
 def _hybrid(storage: Storage) -> HybridIndex:

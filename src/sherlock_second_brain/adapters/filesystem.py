@@ -19,7 +19,6 @@ import re
 import shutil
 import tempfile
 import threading
-import uuid
 from pathlib import Path
 
 import jsonschema
@@ -34,17 +33,10 @@ from sherlock_second_brain.domain.errors import (
     StorageError,
 )
 from sherlock_second_brain.domain.models.case import Case
-from sherlock_second_brain.domain.models.evidence import Evidence
 from sherlock_second_brain.domain.models.memory import Memory
-from sherlock_second_brain.domain.text import (
-    CASE_ID_PATTERN,
-    MEMORY_ID_PATTERN,
-    now_iso,
-    slugify,
-)
+from sherlock_second_brain.domain.text import CASE_ID_PATTERN, MEMORY_ID_PATTERN, now_iso
 
 _SCHEMA_NAME = "case.schema.json"
-VALID_STATUS = {"open", "in_progress", "resolved", "abandoned"}
 _LOCK = threading.RLock()
 
 
@@ -133,32 +125,22 @@ class Storage:
         except jsonschema.ValidationError as exc:
             raise CaseValidationError(exc.message) from exc
 
-    def create_case(
-        self,
-        title: str,
-        goal: str,
-        context: str = "",
-        tags: list[str] | None = None,
-        references: list[str] | None = None,
-    ) -> Case:
-        if not title.strip():
-            raise CaseValidationError("title is required")
+    def _save_case(self, case: Case) -> None:
+        rel = self._case_path(case.id)
+        self._validate_case(case)
+        _atomic_write(self.root / rel, case.model_dump_json(indent=2))
+
+    def _validate_case(self, case: Case) -> None:
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        try:
+            jsonschema.validate(case.model_dump(), schema)
+        except jsonschema.ValidationError as exc:
+            raise CaseValidationError(exc.message) from exc
+
+    def save_case(self, case: Case) -> None:
+        """Persist a case (create or update) as ``cases/<id>/case.json``."""
         with _LOCK:
-            case_id = self.next_case_id()
-            now = now_iso()
-            case = Case(
-                id=case_id,
-                title=title.strip(),
-                status="open",
-                goal=goal.strip(),
-                context=context.strip(),
-                tags=tags or [],
-                references=references or [],
-                created_at=now,
-                updated_at=now,
-            )
             self._save_case(case)
-            return case
 
     def next_case_id(self) -> str:
         """Return the next ``case-YYYY-MM-DD-NNN`` id (per-day counter)."""
@@ -178,7 +160,7 @@ class Storage:
         with _LOCK:
             return self._load_case(case_id)
 
-    def list_cases(self, status: str | None = None, tag: str | None = None) -> list[Case]:
+    def list_cases(self) -> list[Case]:
         with _LOCK:
             if not self.cases_dir.exists():
                 return []
@@ -190,22 +172,10 @@ class Storage:
                 if not case_path.exists():
                     continue
                 try:
-                    case = Case.model_validate(json.loads(case_path.read_text(encoding="utf-8")))
+                    cases.append(Case.model_validate(json.loads(case_path.read_text(encoding="utf-8"))))
                 except (json.JSONDecodeError, ValidationError):
                     continue
-                if status and case.status != status:
-                    continue
-                if tag and tag not in case.tags:
-                    continue
-                cases.append(case)
             return cases
-
-    def update_case(self, case: Case) -> Case:
-        with _LOCK:
-            self._load_case(case.id)  # ensure exists
-            case.touch()
-            self._save_case(case)
-            return case
 
     def delete_case(self, case_id: str) -> None:
         with _LOCK:
@@ -215,24 +185,15 @@ class Storage:
                 raise CaseNotFoundError(case_id)
             shutil.rmtree(path)
 
-    def add_evidence(
-        self, case_id: str, content: str, summary: str, filename: str | None = None
-    ) -> Case:
+    def write_evidence(self, case_id: str, filename: str, content: str) -> str:
+        """Write an evidence file and return its relative path (``evidence/<name>``)."""
         with _LOCK:
-            case = self._load_case(case_id)
+            self._require_valid_case_id(case_id)
             ev_dir = self.cases_dir / case_id / "evidence"
             ev_dir.mkdir(parents=True, exist_ok=True)
-            fname = filename or f"{slugify(summary)}-{uuid.uuid4().hex[:6]}.txt"
-            path = ev_dir / Path(fname).name  # ignore tout chemin parent
+            path = ev_dir / Path(filename).name  # strip any parent directory
             _atomic_write(path, content)
-            rel = f"evidence/{path.name}"
-            case.evidence = [
-                *case.evidence,
-                Evidence(path=rel, type="file", summary=summary),
-            ]
-            case.touch()
-            self._save_case(case)
-            return case
+            return f"evidence/{path.name}"
 
     # ── Memories ────────────────────────────────────────────────
 
@@ -243,6 +204,17 @@ class Storage:
     def memory_abs_path(self, memory_id: str) -> Path:
         self._require_valid_memory_id(memory_id)
         return self.memories_dir / f"{memory_id}.md"
+
+    def _load_memory(self, memory_id: str) -> Memory:
+        path = self.memory_abs_path(memory_id)
+        if not path.exists():
+            raise MemoryNotFoundError(memory_id)
+        return parse_memory(path.read_text(encoding="utf-8"), id_from_filename=memory_id)
+
+    def save_memory(self, memory: Memory) -> None:
+        """Persist a memory (create or update) as ``memories/<id>.md``."""
+        with _LOCK:
+            _atomic_write(self.memory_abs_path(memory.id), render_memory(memory))
 
     def next_memory_id(self) -> str:
         """Return the next ``mem-YYYY-MM-DD-NNN`` id (per-day counter)."""
@@ -258,63 +230,21 @@ class Storage:
         max_n = max((int(n) for n in (name[len(prefix):] for name in existing) if n.isdigit()), default=0)
         return f"{prefix}{max_n + 1:03d}"
 
-    def _load_memory(self, memory_id: str) -> Memory:
-        path = self.memory_abs_path(memory_id)
-        if not path.exists():
-            raise MemoryNotFoundError(memory_id)
-        return parse_memory(path.read_text(encoding="utf-8"), id_from_filename=memory_id)
-
-    def create_memory(
-        self,
-        summary: str,
-        content: str,
-        tags: list[str] | None = None,
-        references: list[str] | None = None,
-        source: str | None = None,
-    ) -> Memory:
-        if not summary.strip():
-            raise MemoryValidationError("summary is required")
-        with _LOCK:
-            memory_id = self.next_memory_id()
-            now = now_iso()
-            memory = Memory(
-                id=memory_id,
-                summary=summary.strip(),
-                content=content.strip(),
-                tags=tags or [],
-                references=references or [],
-                source=source,
-                created_at=now,
-                updated_at=now,
-            )
-            _atomic_write(self.memory_abs_path(memory_id), render_memory(memory))
-            return memory
-
     def get_memory(self, memory_id: str) -> Memory:
         with _LOCK:
             return self._load_memory(memory_id)
 
-    def list_memories(self, tag: str | None = None) -> list[Memory]:
+    def list_memories(self) -> list[Memory]:
         with _LOCK:
             if not self.memories_dir.exists():
                 return []
             memories: list[Memory] = []
             for path in sorted(self.memories_dir.glob("*.md")):
                 try:
-                    memory = parse_memory(path.read_text(encoding="utf-8"), id_from_filename=path.stem)
+                    memories.append(parse_memory(path.read_text(encoding="utf-8"), id_from_filename=path.stem))
                 except MemoryValidationError:
                     continue
-                if tag and tag not in memory.tags:
-                    continue
-                memories.append(memory)
             return memories
-
-    def update_memory(self, memory: Memory) -> Memory:
-        with _LOCK:
-            self._load_memory(memory.id)  # ensure exists
-            memory.touch()
-            _atomic_write(self.memory_abs_path(memory.id), render_memory(memory))
-            return memory
 
     def delete_memory(self, memory_id: str) -> None:
         with _LOCK:

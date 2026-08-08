@@ -29,17 +29,24 @@ it needs an MCP client to be useful (wired as `~/.config/opencode/opencode.json`
 
 - `src/sherlock_second_brain/`:
   - `server.py` — composition root: instantiates adapters+services, `@mcp.tool()` defs
-  - `domain/` — pure pydantic, one file per class (`models/{case,hypothesis,step,evidence,memory,promotion}.py`),
-    plus `errors.py` (StorageError hierarchy) and `text.py` (`slugify`, `now_iso`, `CASE_ID_PATTERN`, `MEMORY_ID_PATTERN`)
-  - `application/` — use cases depending on `ports.py` Protocols only:
-    `case_service.py` (`CaseService`), `memory_service.py` (`MemoryService`),
-    `promotion_service.py` (`PromotionService`)
-  - `adapters/` — concrete implementations: `filesystem.py` (`Storage`), `chroma.py`
-    (`VectorIndex` + `FastembedEmbeddingFunction` multilingue), `lexical.py`
-    (`LexicalIndex`), `hybrid.py` (`HybridIndex` RRF), `dto/case_update.py`
-    (`CaseUpdateFields` for the `case_update` fields), `frontmatter.py`
-    (memory MD + YAML frontmatter render/parse), `templates/` (Jinja2:
-    `fiche.md.j2`, `skill.md.j2`, `memory_fiche.md.j2` rendered by `PromotionService`)
+  - `domain/` — **rich aggregates** enforcing their invariants: `models/case.py`
+    (`Case` factory + mutations + `promote`) and `models/memory.py` (`Memory`
+    factory + setters + `promote`), one file per class
+    (`models/{case,hypothesis,step,evidence,memory,promotion}.py`), plus
+    `errors.py` (StorageError hierarchy), `rules.py` (`VALID_STATUS`,
+    `VALID_PROMOTION_TARGETS`) and `text.py` (`slugify`, `now_iso`,
+    `CASE_ID_PATTERN`, `MEMORY_ID_PATTERN`)
+  - `application/` — thin orchestration only (no business rules), depending on
+    `ports.py` Protocols: `case_service.py` (`CaseService`), `memory_service.py`
+    (`MemoryService`), `promotion_service.py` (`PromotionService`)
+  - `adapters/` — persistence/IO only, no domain policy: `filesystem.py`
+    (`Storage` persists by object: `save_*`/`get`/`list`/`delete`/`next_*_id`/
+    `write_evidence`), `chroma.py` (`VectorIndex` +
+    `FastembedEmbeddingFunction` multilingue), `lexical.py` (`LexicalIndex`),
+    `hybrid.py` (`HybridIndex` RRF), `dto/case_update.py` (`CaseUpdateFields`
+    for the `case_update` fields), `frontmatter.py` (memory MD + YAML frontmatter
+    render/parse), `templates/` (Jinja2: `fiche.md.j2`, `skill.md.j2`,
+    `memory_fiche.md.j2` rendered by `PromotionService`)
 - Data layout under `SHERLOCK_BRAIN_DATA_DIR` (default `~/sherlock-second-brain-data`):
   - `cases/<case-id>/case.json` + `cases/<case-id>/evidence/*` — `case-id` = `case-YYYY-MM-DD-NNN` (per-day counter)
   - `memories/<id>.md` — `id` = `mem-YYYY-MM-DD-NNN` (per-day counter), YAML frontmatter + body

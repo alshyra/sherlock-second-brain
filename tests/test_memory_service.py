@@ -79,6 +79,14 @@ def test_search_restricts_to_memories(storage: Storage) -> None:
     assert all(str(r["id"]).startswith("memory:") for r in results)
 
 
+def test_list_memories_filters_by_tag(storage: Storage) -> None:
+    svc, _ = _service(storage)
+    a = svc.create(summary="a", content="x", tags=["nas"])
+    b = svc.create(summary="b", content="y", tags=["traefik"])
+    assert [m.id for m in svc.list_memories()] == [a.id, b.id]
+    assert [m.id for m in svc.list_memories(tag="nas")] == [a.id]
+
+
 def test_get_missing_raises(storage: Storage) -> None:
     svc, _ = _service(storage)
     with pytest.raises(MemoryNotFoundError):

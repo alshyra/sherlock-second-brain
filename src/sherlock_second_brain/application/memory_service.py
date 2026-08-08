@@ -1,8 +1,9 @@
-"""Use case: lifecycle of memories (standalone notes, no case).
+"""Use case: lifecycle of memories (thin orchestration).
 
-A memory is a low-friction capture: unlike cases, the index is maintained on
-every mutation (including create) so a freshly added memory is immediately
-searchable — that is its whole purpose.
+Business rules live on the ``Memory`` aggregate (domain). This service only
+orders the calls and keeps the index in sync. Unlike cases, the index is
+maintained on every mutation (including create) so a freshly added memory is
+immediately searchable — that is its whole purpose.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from sherlock_second_brain.domain.models.memory import Memory
 
 
 class MemoryService:
-    """Orchestrates memory operations through its ports."""
+    """Coordinates memory operations through their ports."""
 
     def __init__(self, repository: MemoryRepository, index: SearchIndex) -> None:
         self._repository = repository
@@ -39,13 +40,15 @@ class MemoryService:
         references: list[str] | None = None,
         source: str | None = None,
     ) -> Memory:
-        memory = self._repository.create_memory(
+        memory = Memory.create_memory(
+            self._repository.next_memory_id(),
             summary=summary,
             content=content,
             tags=tags,
             references=references,
             source=source,
         )
+        self._repository.save_memory(memory)
         self._reindex(memory)
         return memory
 
@@ -53,7 +56,10 @@ class MemoryService:
         return self._repository.get_memory(memory_id)
 
     def list_memories(self, tag: str = "") -> list[Memory]:
-        return self._repository.list_memories(tag=tag or None)
+        memories = self._repository.list_memories()
+        if tag:
+            memories = [m for m in memories if tag in m.tags]
+        return memories
 
     def search(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         """Hybrid search over the whole index, restricted to memories."""
@@ -72,18 +78,18 @@ class MemoryService:
     ) -> Memory:
         memory = self._repository.get_memory(memory_id)
         if summary is not None:
-            memory.summary = summary
+            memory.set_summary(summary)
         if content is not None:
-            memory.content = content
+            memory.set_content(content)
         if tags is not None:
-            memory.tags = tags
+            memory.set_tags(tags)
         if references is not None:
-            memory.references = references
+            memory.set_references(references)
         if source is not None:
-            memory.source = source
-        updated = self._repository.update_memory(memory)
-        self._reindex(updated)
-        return updated
+            memory.set_source(source)
+        self._repository.save_memory(memory)
+        self._reindex(memory)
+        return memory
 
     def delete(self, memory_id: str) -> None:
         self._repository.delete_memory(memory_id)

@@ -1,4 +1,4 @@
-"""Tests for memory storage: CRUD, frontmatter round-trip, id safety."""
+"""Tests for memory persistence: frontmatter round-trip, id safety."""
 
 from __future__ import annotations
 
@@ -10,70 +10,73 @@ from sherlock_second_brain.domain.errors import MemoryNotFoundError, MemoryValid
 from sherlock_second_brain.domain.models.memory import Memory
 
 
-def test_create_memory_minimal(storage: Storage) -> None:
-    memory = storage.create_memory(summary="Le NAS tourne sur Fedora 44", content="Serveur Fedora 44.")
-    assert memory.id.startswith("mem-")
-    assert memory.tags == []
-    assert memory.source is None
-    assert memory.created_at == memory.updated_at
-    assert (storage.memories_dir / f"{memory.id}.md").exists()
+def _new_memory(storage: Storage, *, tags: list[str] | None = None) -> Memory:
+    return Memory.create_memory(storage.next_memory_id(), summary="s", content="c", tags=tags)
+
+
+def test_save_memory_persists_round_trip(storage: Storage) -> None:
+    memory = Memory.create_memory(
+        storage.next_memory_id(),
+        summary="Le NAS tourne sur Fedora 44",
+        content="Serveur Fedora 44.",
+        tags=["nas"],
+        references=["https://fedoraproject.org"],
+        source="slack",
+    )
+    storage.save_memory(memory)
+    loaded = storage.get_memory(memory.id)
+    assert loaded.model_dump() == memory.model_dump()
 
 
 def test_memory_id_increments_per_day(storage: Storage) -> None:
-    m1 = storage.create_memory(summary="a", content="x")
-    m2 = storage.create_memory(summary="b", content="y")
-    assert m1.id.endswith("001")
-    assert m2.id.endswith("002")
-    assert m1.id != m2.id
-
-
-def test_memory_requires_summary(storage: Storage) -> None:
-    with pytest.raises(MemoryValidationError):
-        storage.create_memory(summary="   ", content="x")
+    first = _new_memory(storage)
+    storage.save_memory(first)
+    second = _new_memory(storage)
+    storage.save_memory(second)
+    assert first.id.endswith("001")
+    assert second.id.endswith("002")
 
 
 def test_frontmatter_round_trip_keeps_accents(storage: Storage) -> None:
-    memory = storage.create_memory(
+    memory = Memory.create_memory(
+        storage.next_memory_id(),
         summary="Très long record TXT",
         content="Échec DNS-01 car le record est trop long.",
         tags=["traefik", "ssl"],
         references=["https://example.com/docs"],
         source="slack",
     )
+    storage.save_memory(memory)
     raw = (storage.memories_dir / f"{memory.id}.md").read_text(encoding="utf-8")
     assert "Très long record TXT" in raw
     assert "Échec DNS-01" in raw
 
     parsed = storage.get_memory(memory.id)
-    assert parsed.id == memory.id
     assert parsed.summary == "Très long record TXT"
     assert parsed.content == "Échec DNS-01 car le record est trop long."
     assert parsed.tags == ["traefik", "ssl"]
-    assert parsed.references == ["https://example.com/docs"]
     assert parsed.source == "slack"
-    assert parsed.created_at == memory.created_at
 
 
-def test_update_memory_touches_timestamp(storage: Storage) -> None:
-    memory = storage.create_memory(summary="s", content="c")
-    memory.content = "nouveau contenu"
-    updated = storage.update_memory(memory)
-    assert updated.content == "nouveau contenu"
-    assert updated.updated_at >= updated.created_at
+def test_save_memory_updates_content(storage: Storage) -> None:
+    memory = _new_memory(storage)
+    storage.save_memory(memory)
+    memory.set_content("nouveau contenu")
+    storage.save_memory(memory)
+    assert storage.get_memory(memory.id).content == "nouveau contenu"
 
 
-def test_list_memories_filters_by_tag(storage: Storage) -> None:
-    a = storage.create_memory(summary="a", content="x", tags=["nas"])
-    storage.create_memory(summary="b", content="y", tags=["traefik"])
-    assert {m.id for m in storage.list_memories()} == {
-        a.id,
-        storage.list_memories()[1].id,
-    }
-    assert [m.id for m in storage.list_memories(tag="nas")] == [a.id]
+def test_list_memories_is_raw(storage: Storage) -> None:
+    a = _new_memory(storage, tags=["nas"])
+    b = _new_memory(storage, tags=["traefik"])
+    storage.save_memory(a)
+    storage.save_memory(b)
+    assert {m.id for m in storage.list_memories()} == {a.id, b.id}
 
 
 def test_delete_memory(storage: Storage) -> None:
-    memory = storage.create_memory(summary="a", content="x")
+    memory = _new_memory(storage)
+    storage.save_memory(memory)
     storage.delete_memory(memory.id)
     with pytest.raises(MemoryNotFoundError):
         storage.get_memory(memory.id)

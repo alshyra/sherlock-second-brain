@@ -8,7 +8,6 @@ from sherlock_second_brain.adapters.filesystem import Storage
 from sherlock_second_brain.application.promotion_service import PromotionService
 from sherlock_second_brain.domain.models.case import Case
 from sherlock_second_brain.domain.models.memory import Memory
-from sherlock_second_brain.domain.models.step import Step
 
 
 def _service(storage: Storage) -> PromotionService:
@@ -16,28 +15,28 @@ def _service(storage: Storage) -> PromotionService:
 
 
 def _resolved_case(storage: Storage) -> Case:
-    case = storage.create_case(
+    case = Case.create_case(
+        storage.next_case_id(),
         title="Fix SSL renewal",
         goal="Understand why the Let's Encrypt renewal fails",
         context="Cert failing for 3 days",
         tags=["traefik", "ssl"],
         references=["https://example.com/docs"],
     )
-    storage.add_evidence(case.id, "error: invalid response", "cause of refusal", "01.log")
-    case = storage.get_case(case.id)
-    case.findings.append("DNS-01 returns a TXT record that is too long")
-    case.conclusion = "Reducing the TXT record size fixes the problem"
-    case.steps = [
-        *case.steps,
-        Step(order=1, action="test the TXT record", result="too long"),
-    ]
-    case.status = "resolved"
-    storage.update_case(case)
+    storage.save_case(case)
+    rel = storage.write_evidence(case.id, "01.log", "error: invalid response")
+    case.add_evidence("cause of refusal", rel)
+    case.add_finding("DNS-01 returns a TXT record that is too long")
+    case.set_conclusion("Reducing the TXT record size fixes the problem")
+    case.add_step("test the TXT record", "too long")
+    case.set_status("resolved")
+    storage.save_case(case)
     return storage.get_case(case.id)
 
 
 def test_cannot_promote_open_case(storage: Storage) -> None:
-    case = storage.create_case(title="a", goal="g")
+    case = Case.create_case(storage.next_case_id(), title="a", goal="g")
+    storage.save_case(case)
     with pytest.raises(ValueError):
         _service(storage).promote(case, "fiche")
 
@@ -88,13 +87,16 @@ def test_fiche_badges_promotion_status(storage: Storage) -> None:
 
 
 def _memory(storage: Storage) -> Memory:
-    return storage.create_memory(
+    memory = Memory.create_memory(
+        storage.next_memory_id(),
         summary="Le NAS tourne sur Fedora 44",
         content="Serveur Fedora 44 avec Jellyfin et les *Arr.",
         tags=["nas", "infra"],
         references=["https://fedoraproject.org"],
         source="slack",
     )
+    storage.save_memory(memory)
+    return memory
 
 
 def test_promote_memory_to_fiche(storage: Storage) -> None:
